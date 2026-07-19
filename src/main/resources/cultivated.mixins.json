@@ -2,7 +2,9 @@
 	"required": true,
 	"package": "dev.nitjsefnie.cultivated.mixin",
 	"compatibilityLevel": "JAVA_25",
-	"mixins": [],
+	"mixins": [
+		"CropBlockAccessor"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	}

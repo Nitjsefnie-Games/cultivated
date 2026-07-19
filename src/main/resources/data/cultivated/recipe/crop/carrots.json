@@ -1,0 +1,22 @@
+{
+	"type": "cultivated:crop",
+	"input": "minecraft:carrot",
+	"soil": "#cultivated:soil/dirt",
+	"grow_time": 1200,
+	"display": [
+		{
+			"type": "cultivated:aging",
+			"block": "minecraft:carrots"
+		}
+	],
+	"drops": [
+		{
+			"type": "cultivated:items",
+			"items": [
+				{ "result": { "id": "minecraft:carrot", "count": 2 } }
+			]
+		}
+	],
+	"yield": 1.0,
+	"yield_scale": 1.0
+}

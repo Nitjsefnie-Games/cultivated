@@ -1,0 +1,5 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:wheat",
+	"grow_time": 1200
+}

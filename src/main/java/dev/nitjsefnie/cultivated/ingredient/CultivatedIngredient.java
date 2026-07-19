@@ -1,0 +1,110 @@
+package dev.nitjsefnie.cultivated.ingredient;
+
+import com.mojang.datafixers.util.Either;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.nitjsefnie.cultivated.Cultivated;
+import dev.nitjsefnie.cultivated.util.CodecHelper;
+import java.util.List;
+import java.util.function.Predicate;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.block.Block;
+
+/**
+ * Phase A §A.9/§A.12 — an item predicate used by soil/crop/fertilizer/interaction recipes. Wraps
+ * a vanilla {@link Ingredient} and adds the two custom types the datapack uses:
+ * <ul>
+ *   <li>{@code cultivated:either} — matches any of several sub-ingredients;</li>
+ *   <li>{@code cultivated:block_tag} — matches an item whose block form is in a block tag.</li>
+ * </ul>
+ *
+ * <p>Vanilla {@link Ingredient} is {@code final}, so this is a parallel predicate abstraction
+ * rather than a subclass. The codec accepts the plain vanilla ingredient form (item id, {@code
+ * #tag}, or list) as well as the two typed objects above.
+ */
+public sealed interface CultivatedIngredient extends Predicate<ItemStack> {
+	String EITHER_TYPE = Cultivated.id("either").toString();
+	String BLOCK_TAG_TYPE = Cultivated.id("block_tag").toString();
+
+	@Override
+	boolean test(ItemStack stack);
+
+	/** The typed codecs (either/block_tag), dispatched by the {@code type} field. */
+	Codec<CultivatedIngredient> CUSTOM_CODEC = Codec.STRING.dispatch(
+		"type",
+		CultivatedIngredient::typeId,
+		type -> {
+			if (EITHER_TYPE.equals(type)) {
+				return Either_.MAP_CODEC;
+			} else if (BLOCK_TAG_TYPE.equals(type)) {
+				return BlockTag.MAP_CODEC;
+			}
+			throw new IllegalArgumentException("Unknown cultivated ingredient type: " + type);
+		}
+	);
+
+	Codec<CultivatedIngredient> CODEC = Codec.either(CUSTOM_CODEC, Ingredient.CODEC)
+		.xmap(
+			either -> either.map(custom -> custom, Vanilla::new),
+			ingredient -> ingredient instanceof Vanilla v ? Either.right(v.ingredient()) : Either.left(ingredient)
+		);
+
+	/** Type id used to encode a custom ingredient; null for the plain vanilla form. */
+	default String typeId() {
+		return null;
+	}
+
+	/** Wraps a vanilla ingredient (item id / #tag / list). */
+	record Vanilla(Ingredient ingredient) implements CultivatedIngredient {
+		@Override
+		public boolean test(final ItemStack stack) {
+			return this.ingredient.test(stack);
+		}
+	}
+
+	/** {@code cultivated:either} — matches any of several sub-ingredients. */
+	record Either_(List<CultivatedIngredient> ingredients) implements CultivatedIngredient {
+		static final MapCodec<Either_> MAP_CODEC = RecordCodecBuilder.mapCodec(
+			i -> i.group(CodecHelper.flexibleList(CODEC).fieldOf("ingredients").forGetter(Either_::ingredients))
+				.apply(i, Either_::new)
+		);
+
+		@Override
+		public boolean test(final ItemStack stack) {
+			for (final CultivatedIngredient ingredient : this.ingredients) {
+				if (ingredient.test(stack)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		@Override
+		public String typeId() {
+			return EITHER_TYPE;
+		}
+	}
+
+	/** {@code cultivated:block_tag} — matches an item whose block form is in a block tag. */
+	record BlockTag(TagKey<Block> tag) implements CultivatedIngredient {
+		static final MapCodec<BlockTag> MAP_CODEC = RecordCodecBuilder.mapCodec(
+			i -> i.group(TagKey.codec(Registries.BLOCK).fieldOf("tag").forGetter(BlockTag::tag))
+				.apply(i, BlockTag::new)
+		);
+
+		@Override
+		public boolean test(final ItemStack stack) {
+			final Block block = Block.byItem(stack.getItem());
+			return block != net.minecraft.world.level.block.Blocks.AIR && block.builtInRegistryHolder().is(this.tag);
+		}
+
+		@Override
+		public String typeId() {
+			return BLOCK_TAG_TYPE;
+		}
+	}
+}

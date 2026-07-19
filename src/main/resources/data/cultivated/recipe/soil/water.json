@@ -1,0 +1,9 @@
+{
+	"type": "cultivated:soil",
+	"input": "minecraft:water_bucket",
+	"display": {
+		"type": "cultivated:simple",
+		"block_state": { "Name": "minecraft:water" },
+		"render_fluid": true
+	}
+}

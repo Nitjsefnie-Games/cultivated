@@ -1,0 +1,5 @@
+{
+	"type": "cultivated:block_derived_soil",
+	"block": "minecraft:grass_block",
+	"growth_modifier": 0.1
+}
