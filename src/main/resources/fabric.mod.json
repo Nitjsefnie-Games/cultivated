@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "cultivated",
+	"version": "${version}",
+	"name": "Cultivated",
+	"description": "Grow crops, trees, and ores in pots — a clean-room, Fabric-only reimplementation of the BotanyPots concept for Minecraft 26.2, with tiers built in.",
+	"authors": [
+		"Cultivated contributors"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.nitjsefnie.cultivated.Cultivated"
+		]
+	},
+	"mixins": [
+		"cultivated.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
