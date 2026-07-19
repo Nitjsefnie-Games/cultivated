@@ -1,6 +1,9 @@
 package dev.nitjsefnie.cultivated.data.drop;
 
+import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
@@ -17,6 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -67,6 +71,34 @@ public sealed interface DropProvider {
 	);
 
 	Codec<List<DropProvider>> LIST_CODEC = DropProvider.CODEC.listOf();
+
+	/**
+	 * A tolerant {@code block} reference (C1 / §A.9): a missing block id resolves to air rather than
+	 * raising a decode error, so a guarded recipe referencing an absent block still parses (and is
+	 * then dropped by its load condition). An air {@link BlockDrop}/{@link BlockStateDrop} is inert —
+	 * its {@code ItemStack} is empty, so it emits and displays nothing.
+	 */
+	Codec<Block> LENIENT_BLOCK = Identifier.CODEC.xmap(
+		id -> BuiltInRegistries.BLOCK.getOptional(id).orElse(Blocks.AIR),
+		BuiltInRegistries.BLOCK::getKey
+	);
+
+	/** A tolerant {@code block_state} reference: any un-decodable state (e.g. absent block) → air. */
+	Codec<BlockState> LENIENT_BLOCK_STATE = new Codec<>() {
+		@Override
+		public <T> DataResult<Pair<BlockState, T>> decode(final DynamicOps<T> ops, final T input) {
+			final DataResult<Pair<BlockState, T>> result = BlockState.CODEC.decode(ops, input);
+			if (result.result().isPresent()) {
+				return result;
+			}
+			return DataResult.success(Pair.of(Blocks.AIR.defaultBlockState(), ops.empty()));
+		}
+
+		@Override
+		public <T> DataResult<T> encode(final BlockState input, final DynamicOps<T> ops, final T prefix) {
+			return BlockState.CODEC.encode(input, ops, prefix);
+		}
+	};
 
 	/** {@code cultivated:items} — each entry drops its stack on an independent chance roll. */
 	record Items(List<Entry> items) implements DropProvider {
@@ -135,7 +167,7 @@ public sealed interface DropProvider {
 	/** {@code cultivated:block} — uses the block's own loot table (Phase B). */
 	record BlockDrop(Block block) implements DropProvider {
 		static final MapCodec<BlockDrop> MAP_CODEC = RecordCodecBuilder.mapCodec(
-			i -> i.group(BuiltInRegistries.BLOCK.byNameCodec().fieldOf("block").forGetter(BlockDrop::block))
+			i -> i.group(LENIENT_BLOCK.fieldOf("block").forGetter(BlockDrop::block))
 				.apply(i, BlockDrop::new)
 		);
 
@@ -164,7 +196,7 @@ public sealed interface DropProvider {
 	/** {@code cultivated:block_state} — like {@code block} but for a specific state (Phase B). */
 	record BlockStateDrop(BlockState blockState) implements DropProvider {
 		static final MapCodec<BlockStateDrop> MAP_CODEC = RecordCodecBuilder.mapCodec(
-			i -> i.group(BlockState.CODEC.fieldOf("block_state").forGetter(BlockStateDrop::blockState))
+			i -> i.group(LENIENT_BLOCK_STATE.fieldOf("block_state").forGetter(BlockStateDrop::blockState))
 				.apply(i, BlockStateDrop::new)
 		);
 

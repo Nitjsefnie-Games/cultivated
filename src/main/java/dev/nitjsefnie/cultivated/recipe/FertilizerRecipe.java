@@ -39,7 +39,7 @@ public record FertilizerRecipe(
 				Codec.BOOL.optionalFieldOf("spawn_particles", true).forGetter(FertilizerRecipe::spawnParticles),
 				Codec.BOOL.optionalFieldOf("notify_sculk", true).forGetter(FertilizerRecipe::notifySculk),
 				SoundEffect.CODEC.optionalFieldOf("sound_effect").forGetter(FertilizerRecipe::soundEffect),
-				LoadCondition.LIST_CODEC.optionalFieldOf("cultivated:load_conditions", List.of()).forGetter(FertilizerRecipe::conditions)
+				LoadCondition.CONDITIONS_CODEC.forGetter(FertilizerRecipe::conditions)
 			)
 			.apply(i, FertilizerRecipe::new)
 	);

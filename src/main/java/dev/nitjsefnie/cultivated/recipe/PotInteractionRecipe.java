@@ -45,7 +45,7 @@ public record PotInteractionRecipe(
 				Identifier.CODEC.optionalFieldOf("extra_drops").forGetter(PotInteractionRecipe::extraDrops),
 				SoundEffect.CODEC.optionalFieldOf("sound_effect").forGetter(PotInteractionRecipe::soundEffect),
 				Codec.BOOL.optionalFieldOf("notify_sculk", true).forGetter(PotInteractionRecipe::notifySculk),
-				LoadCondition.LIST_CODEC.optionalFieldOf("cultivated:load_conditions", List.of()).forGetter(PotInteractionRecipe::conditions)
+				LoadCondition.CONDITIONS_CODEC.forGetter(PotInteractionRecipe::conditions)
 			)
 			.apply(i, PotInteractionRecipe::new)
 	);

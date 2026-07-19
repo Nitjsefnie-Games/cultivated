@@ -32,7 +32,7 @@ public record SoilRecipe(
 				com.mojang.serialization.Codec.FLOAT.optionalFieldOf("growth_modifier", 0.0f).forGetter(SoilRecipe::growthModifier),
 				com.mojang.serialization.Codec.INT.optionalFieldOf("light_level", 0).forGetter(SoilRecipe::lightLevel),
 				com.mojang.serialization.Codec.floatRange(0.0f, Float.MAX_VALUE).optionalFieldOf("yield_modifier", 0.0f).forGetter(SoilRecipe::yieldModifier),
-				LoadCondition.LIST_CODEC.optionalFieldOf("cultivated:load_conditions", List.of()).forGetter(SoilRecipe::conditions)
+				LoadCondition.CONDITIONS_CODEC.forGetter(SoilRecipe::conditions)
 			)
 			.apply(i, SoilRecipe::new)
 	);

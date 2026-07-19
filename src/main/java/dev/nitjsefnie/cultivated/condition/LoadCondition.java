@@ -1,11 +1,16 @@
 package dev.nitjsefnie.cultivated.condition;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.MapLike;
+import com.mojang.serialization.RecordBuilder;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.config.CultivatedConfig;
 import java.util.List;
+import java.util.stream.Stream;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 
@@ -22,6 +27,15 @@ public sealed interface LoadCondition {
 	String BLOCK_EXISTS_TYPE = Cultivated.id("block_exists").toString();
 	String ITEM_EXISTS_TYPE = Cultivated.id("item_exists").toString();
 	String CONFIG_TYPE = Cultivated.id("config").toString();
+
+	/** The mod's own load-conditions field key ({@code cultivated:load_conditions}). */
+	String CONDITIONS_KEY = Cultivated.id("load_conditions").toString();
+
+	/**
+	 * The legacy Bookshelf field key ({@code bookshelf:load_conditions}), accepted for drop-in
+	 * compatibility with imported BotanyPots datapacks (§A.9).
+	 */
+	String LEGACY_CONDITIONS_KEY = "bookshelf:load_conditions";
 
 	boolean test();
 
@@ -43,6 +57,40 @@ public sealed interface LoadCondition {
 	);
 
 	Codec<List<LoadCondition>> LIST_CODEC = CODEC.listOf();
+
+	/**
+	 * Map-codec for the optional load-conditions field on a data file (§A.9). Decodes from either
+	 * {@link #CONDITIONS_KEY} ({@code cultivated:load_conditions}) or the legacy
+	 * {@link #LEGACY_CONDITIONS_KEY} ({@code bookshelf:load_conditions}); when both are present the
+	 * mod's own key wins. An absent field decodes to an empty (always-passing) list, and encoding
+	 * always writes the mod's own key (nothing at all when the list is empty).
+	 */
+	MapCodec<List<LoadCondition>> CONDITIONS_CODEC = new MapCodec<>() {
+		@Override
+		public <T> Stream<T> keys(final DynamicOps<T> ops) {
+			return Stream.of(ops.createString(CONDITIONS_KEY), ops.createString(LEGACY_CONDITIONS_KEY));
+		}
+
+		@Override
+		public <T> DataResult<List<LoadCondition>> decode(final DynamicOps<T> ops, final MapLike<T> input) {
+			T value = input.get(CONDITIONS_KEY);
+			if (value == null) {
+				value = input.get(LEGACY_CONDITIONS_KEY);
+			}
+			if (value == null) {
+				return DataResult.success(List.of());
+			}
+			return LIST_CODEC.parse(ops, value);
+		}
+
+		@Override
+		public <T> RecordBuilder<T> encode(final List<LoadCondition> input, final DynamicOps<T> ops, final RecordBuilder<T> prefix) {
+			if (input.isEmpty()) {
+				return prefix;
+			}
+			return prefix.add(CONDITIONS_KEY, LIST_CODEC.encodeStart(ops, input));
+		}
+	};
 
 	/** True when every condition passes (an empty/absent list always passes). */
 	static boolean testAll(final List<LoadCondition> conditions) {

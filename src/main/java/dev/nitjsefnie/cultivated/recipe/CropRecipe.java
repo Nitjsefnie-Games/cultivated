@@ -48,7 +48,7 @@ public record CropRecipe(
 				BlockPredicate.CODEC.optionalFieldOf("pot_predicate").forGetter(CropRecipe::potPredicate),
 				Codec.floatRange(0.0f, Float.MAX_VALUE).optionalFieldOf("yield", 1.0f).forGetter(CropRecipe::yield),
 				Codec.floatRange(0.0f, Float.MAX_VALUE).optionalFieldOf("yield_scale", 1.0f).forGetter(CropRecipe::yieldScale),
-				LoadCondition.LIST_CODEC.optionalFieldOf("cultivated:load_conditions", List.of()).forGetter(CropRecipe::conditions)
+				LoadCondition.CONDITIONS_CODEC.forGetter(CropRecipe::conditions)
 			)
 			.apply(i, CropRecipe::new)
 	);
