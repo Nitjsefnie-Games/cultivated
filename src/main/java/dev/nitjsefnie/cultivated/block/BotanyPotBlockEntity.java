@@ -170,7 +170,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	private void resetPot() {
 		this.growthTime.reset();
 		this.growCooldown.reset();
-		this.comparatorLevel = 0;
+		this.setComparatorLevel(0);
 		this.bonemealCooldown = 0;
 		this.cropCache.invalidate();
 		this.soilCache.invalidate();
@@ -299,6 +299,52 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		return this.comparatorLevel;
 	}
 
+	/**
+	 * The single owner of every comparator-level change (B1 review carry-over): on an actual change
+	 * it marks the block entity dirty AND notifies redstone neighbours via
+	 * {@link Level#updateNeighbourForOutputSignal}, so a comparator can never lag the stored signal.
+	 * Server-authoritative; the neighbour notification is skipped client-side.
+	 */
+	private void setComparatorLevel(final int value) {
+		if (this.comparatorLevel == value) {
+			return;
+		}
+		this.comparatorLevel = value;
+		this.setChanged();
+		if (this.level != null && !this.level.isClientSide()) {
+			this.level.updateNeighbourForOutputSignal(this.worldPosition, this.getBlockState().getBlock());
+		}
+	}
+
+	/** Emitted light for this pot (§B.1): {@code max(crop light, soil light)}, 0 when empty. */
+	private int computeLightLevel() {
+		int light = 0;
+		final CropRecipe crop = this.resolveCrop();
+		if (crop != null) {
+			light = Math.max(light, crop.lightLevel());
+		}
+		final SoilRecipe soil = this.resolveSoil();
+		if (soil != null) {
+			light = Math.max(light, soil.lightLevel());
+		}
+		return Math.max(0, Math.min(15, light));
+	}
+
+	/** Keep the block's {@code level} state (which drives light emission) in sync with the crop/soil. */
+	private void updateLightLevel(final Level level) {
+		if (level.isClientSide()) {
+			return; // block state is server-authoritative and replicated to clients
+		}
+		final BlockState state = this.getBlockState();
+		if (!state.hasProperty(BotanyPotBlock.LEVEL)) {
+			return;
+		}
+		final int desired = this.computeLightLevel();
+		if (state.getValue(BotanyPotBlock.LEVEL) != desired) {
+			level.setBlock(this.worldPosition, state.setValue(BotanyPotBlock.LEVEL, desired), Block.UPDATE_ALL);
+		}
+	}
+
 	public float getGrowthTime() {
 		return this.growthTime.get();
 	}
@@ -336,6 +382,10 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		final boolean client = level.isClientSide();
 		final float rate = level.tickRateManager().tickrate();
 
+		// Keep the emitted-light block state aligned with the resolved crop/soil (§B.1), for every
+		// pot type — waxed pots also light from their decorative full-grown crop.
+		this.updateLightLevel(level);
+
 		if (this.potType.isWaxed()) {
 			// Decorative: force growth to "max" so the renderer shows a full-grown crop; never harvest.
 			final CropRecipe crop = this.resolveCrop();
@@ -343,8 +393,6 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			this.growthTime.set(Math.max(required, 1));
 			return;
 		}
-
-		final int comparatorBefore = this.comparatorLevel;
 
 		if (this.bonemealCooldown > 0) {
 			this.bonemealCooldown--;
@@ -367,18 +415,18 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 				}
 				if (required > 0 && this.growthTime.get() >= required) {
 					if (!client) {
-						this.comparatorLevel = PotMechanics.MATURE_SIGNAL;
+						this.setComparatorLevel(PotMechanics.MATURE_SIGNAL);
 						this.growCooldown.set(MATURE_RECHECK_TICKS);
 						if (this.potType.isHopper()) {
 							this.autoHarvest(level, crop, soil);
 						}
 					}
 				} else if (!client) {
-					this.comparatorLevel = PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required);
+					this.setComparatorLevel(PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required));
 				}
 			}
 		} else if (!client) {
-			this.comparatorLevel = 0;
+			this.setComparatorLevel(0);
 		}
 
 		if (!client && this.potType.isHopper()) {
@@ -389,10 +437,6 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 				this.exportDelay.set(EXPORT_INTERVAL_TICKS);
 				this.exportToBelow(level);
 			}
-		}
-
-		if (!client && comparatorBefore != this.comparatorLevel) {
-			this.setChanged();
 		}
 	}
 
@@ -416,7 +460,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.damageHarvestTool();
 		level.gameEvent(null, GameEvent.BLOCK_CHANGE, this.worldPosition);
 		this.growthTime.reset();
-		this.comparatorLevel = 0;
+		this.setComparatorLevel(0);
 		this.setChanged();
 	}
 
@@ -440,7 +484,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.level.gameEvent(player, GameEvent.BLOCK_CHANGE, this.worldPosition);
 		this.growthTime.reset();
 		this.growCooldown.reset();
-		this.comparatorLevel = 0;
+		this.setComparatorLevel(0);
 		this.setChanged();
 		this.syncToClients();
 		return true;
@@ -461,9 +505,9 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		final int added = recipe.growth().resolve(required, this.level.getRandom());
 		this.growthTime.set(PotMechanics.clampFertilizedGrowth(this.growthTime.get(), added, required));
 		this.bonemealCooldown = recipe.cooldown();
-		this.comparatorLevel = this.growthTime.get() >= required
+		this.setComparatorLevel(this.growthTime.get() >= required
 			? PotMechanics.MATURE_SIGNAL
-			: PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required);
+			: PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required));
 
 		recipe.soundEffect().ifPresent(sound ->
 			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
