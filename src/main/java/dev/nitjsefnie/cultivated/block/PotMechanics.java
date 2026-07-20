@@ -1,5 +1,6 @@
 package dev.nitjsefnie.cultivated.block;
 
+import java.util.List;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 
@@ -129,6 +130,37 @@ public final class PotMechanics {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Merge {@code drop} into the storage buffer (slots {@link #FIRST_STORAGE}..{@link #LAST_STORAGE}) of
+	 * {@code items} in place, returning the count that did NOT fit — the overflow (R3d). An empty slot
+	 * accepts up to {@code min(containerMax, item's own max stack size)}; a slot holding the same
+	 * item+components grows toward that same cap; other slots are skipped. Mirrors the merge limits used
+	 * by {@link #storageBufferHasRoom} so the R2d pause decision agrees with what a harvest can deposit.
+	 *
+	 * <p>The hopper auto-harvest path (the only caller) DISCARDS the returned overflow — it is voided,
+	 * never dropped into the world — so a partially-full hopper pot keeps what fits and silently destroys
+	 * the rest (no world litter). {@code items} must be at least {@link #SIZE} long; only the storage
+	 * slots are read/written. {@code drop} is consumed in place (its count is reduced to the overflow).
+	 */
+	public static int fillStorage(final List<ItemStack> items, final ItemStack drop, final int containerMax) {
+		final ItemStack remaining = drop;
+		for (int slot = FIRST_STORAGE; slot <= LAST_STORAGE && !remaining.isEmpty(); slot++) {
+			final ItemStack current = items.get(slot);
+			if (current.isEmpty()) {
+				final int move = Math.min(remaining.getCount(), Math.min(containerMax, remaining.getMaxStackSize()));
+				items.set(slot, remaining.split(move));
+			} else if (ItemStack.isSameItemSameComponents(current, remaining)) {
+				final int space = Math.min(containerMax, current.getMaxStackSize()) - current.getCount();
+				if (space > 0) {
+					final int move = Math.min(space, remaining.getCount());
+					current.grow(move);
+					remaining.shrink(move);
+				}
+			}
+		}
+		return remaining.getCount();
 	}
 
 	/**

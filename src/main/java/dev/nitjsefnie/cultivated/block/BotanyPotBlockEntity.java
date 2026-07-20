@@ -795,26 +795,16 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		return free;
 	}
 
-	/** Merge a drop into the storage slots (3..14); anything that does not fit pops above the pot. */
+	/**
+	 * Merge a hopper auto-harvest drop into the storage slots (3..14); anything that does not fit is
+	 * DISCARDED — voided, never dropped into the world (R3d). This path is hopper-only (called from
+	 * {@link #autoHarvest}); the basic-pot manual harvest pops its drops to the world on a separate path
+	 * (§B.2). Together with the R2d full-buffer growth pause, an auto-harvesting pot never litters: a
+	 * completely full buffer holds at mature without harvesting, and a partially-full buffer keeps what
+	 * fits and silently destroys the overflow.
+	 */
 	private void insertIntoStorage(final ItemStack drop) {
-		ItemStack remaining = drop;
-		for (int slot = PotMechanics.FIRST_STORAGE; slot <= PotMechanics.LAST_STORAGE && !remaining.isEmpty(); slot++) {
-			final ItemStack current = this.items.get(slot);
-			if (current.isEmpty()) {
-				final int move = Math.min(remaining.getCount(), this.getMaxStackSize(remaining));
-				this.items.set(slot, remaining.split(move));
-			} else if (ItemStack.isSameItemSameComponents(current, remaining)) {
-				final int space = Math.min(this.getMaxStackSize(current), current.getMaxStackSize()) - current.getCount();
-				if (space > 0) {
-					final int move = Math.min(space, remaining.getCount());
-					current.grow(move);
-					remaining.shrink(move);
-				}
-			}
-		}
-		if (!remaining.isEmpty() && this.level != null) {
-			Block.popResource(this.level, this.worldPosition.above(), remaining);
-		}
+		PotMechanics.fillStorage(this.items, drop, this.getMaxStackSize());
 	}
 
 	/** Hopper export (§B.5): push each storage slot into the inventory below, through its up face. */
