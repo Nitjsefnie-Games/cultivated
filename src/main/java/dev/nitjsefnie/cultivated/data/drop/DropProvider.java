@@ -150,7 +150,9 @@ public sealed interface DropProvider {
 
 		@Override
 		public void generateDrops(final PotContext context, final RandomSource random, final Consumer<ItemStack> out) {
-			// Requires the pot's live LootParams (world, origin, tool) — resolved in Phase B.
+			for (final ItemStack stack : context.rollLootTable(this.tableId, random)) {
+				out.accept(stack);
+			}
 		}
 
 		@Override
@@ -173,8 +175,13 @@ public sealed interface DropProvider {
 
 		@Override
 		public void generateDrops(final PotContext context, final RandomSource random, final Consumer<ItemStack> out) {
-			// Phase B rolls the block loot table; fall back to the block item so a bare data engine
-			// still yields something sensible.
+			// Roll the block's own loot table via the pot's live context; fall back to the plain block
+			// item when the table is missing/empty or there is no live world to roll against (§A.6).
+			final List<ItemStack> rolled = context.rollBlockDrops(this.block.defaultBlockState(), random);
+			if (!rolled.isEmpty()) {
+				rolled.forEach(out);
+				return;
+			}
 			final ItemStack fallback = new ItemStack(this.block);
 			if (!fallback.isEmpty()) {
 				out.accept(fallback);
@@ -202,6 +209,12 @@ public sealed interface DropProvider {
 
 		@Override
 		public void generateDrops(final PotContext context, final RandomSource random, final Consumer<ItemStack> out) {
+			// Roll against the specific state (so age/berry loot conditions pass); fall back as above.
+			final List<ItemStack> rolled = context.rollBlockDrops(this.blockState, random);
+			if (!rolled.isEmpty()) {
+				rolled.forEach(out);
+				return;
+			}
 			final ItemStack fallback = new ItemStack(this.blockState.getBlock());
 			if (!fallback.isEmpty()) {
 				out.accept(fallback);
@@ -232,7 +245,9 @@ public sealed interface DropProvider {
 
 		@Override
 		public void generateDrops(final PotContext context, final RandomSource random, final Consumer<ItemStack> out) {
-			// Requires deriving a living entity and rolling its death loot table — Phase B.
+			for (final ItemStack stack : context.rollEntityDrops(this.entity, this.damageSource, random)) {
+				out.accept(stack);
+			}
 		}
 
 		@Override
