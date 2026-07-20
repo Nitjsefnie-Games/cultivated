@@ -5,6 +5,8 @@ import dev.nitjsefnie.cultivated.data.display.RenderOptions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.level.block.Block;
@@ -19,16 +21,28 @@ import org.jspecify.annotations.Nullable;
  * one {@link Display.Simple} per {@code age} value (a crop block / generic age integer property), or
  * per {@code flower_amount} value, or a single default-state display when the block has neither.
  * Phases are ordered ascending so phase index 0 is the youngest.
+ *
+ * <p>The built list is memoized per {@link Display.Aging} — i.e. keyed by {@code (block, options)}, both
+ * immutable and both a record's only components, so equal displays share one list. Rebuilding it on every
+ * frame in the render hot path (only to discard all but one phase) is wasteful; the cache is a
+ * {@link ConcurrentHashMap} so it is safe for concurrent client render use.
  */
 @Environment(EnvType.CLIENT)
 public final class AgingPhases {
 	private static final String AGE = "age";
 	private static final String FLOWER_AMOUNT = "flower_amount";
 
+	/** Memoized phase lists keyed by {@code (block, options)} — the {@link Display.Aging} record itself. */
+	private static final Map<Display.Aging, List<Display>> CACHE = new ConcurrentHashMap<>();
+
 	private AgingPhases() {
 	}
 
 	public static List<Display> build(final Display.Aging aging) {
+		return CACHE.computeIfAbsent(aging, AgingPhases::buildPhases);
+	}
+
+	private static List<Display> buildPhases(final Display.Aging aging) {
 		final Block block = aging.block();
 		final RenderOptions options = aging.options();
 		final StateDefinition<Block, BlockState> definition = block.getStateDefinition();
@@ -51,7 +65,7 @@ public final class AgingPhases {
 			final BlockState state = block.defaultBlockState().setValue(phaseProperty, value);
 			phases.add(new Display.Simple(state, options));
 		}
-		return phases;
+		return List.copyOf(phases);
 	}
 
 	private static @Nullable IntegerProperty intProperty(final StateDefinition<Block, BlockState> definition, final String name) {

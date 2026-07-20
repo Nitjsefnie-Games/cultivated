@@ -8,11 +8,15 @@ import dev.nitjsefnie.cultivated.data.display.RenderOptions.Vec3f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Phase C §C.5 — renders an {@code entity} display: builds the entity from NBT (cached via
@@ -24,6 +28,10 @@ import net.minecraft.world.entity.Entity;
  */
 @Environment(EnvType.CLIENT)
 public final class EntityDisplayRenderer implements DisplayRenderer<Display> {
+	/** Entity types whose render-state extraction already logged a failure — throttles the warn to once
+	 *  per type so a persistently-malformed datapack display does not spam the log every frame. */
+	private static final Set<EntityType<?>> LOGGED_EXTRACTION_FAILURES = ConcurrentHashMap.newKeySet();
+
 	@Override
 	public void resolve(final Display display, final DisplayResolveContext context, final List<ResolvedDisplay> out) {
 		if (!(display instanceof Display.Entity entityDisplay)) {
@@ -69,9 +77,31 @@ public final class EntityDisplayRenderer implements DisplayRenderer<Display> {
 	private static void extractStates(
 		final Entity entity, final EntityRenderDispatcher dispatcher, final float partialTicks, final List<EntityRenderState> out
 	) {
-		out.add(dispatcher.extractEntity(entity, partialTicks));
+		final EntityRenderState state = extractOne(entity, dispatcher, partialTicks);
+		if (state != null) {
+			out.add(state);
+		}
 		for (final Entity passenger : entity.getPassengers()) {
 			extractStates(passenger, dispatcher, partialTicks, out);
+		}
+	}
+
+	/**
+	 * Best-effort per-entity render-state extraction: arbitrary datapack {@code entity} display NBT could
+	 * make {@link EntityRenderDispatcher#extractEntity} throw, which would otherwise crash the whole block-
+	 * entity render pass. On failure the entity is skipped (returns {@code null}) so it simply isn't drawn —
+	 * a malformed entity display degrades to "not rendered", never a crashed frame (§C.5).
+	 */
+	private static @Nullable EntityRenderState extractOne(
+		final Entity entity, final EntityRenderDispatcher dispatcher, final float partialTicks
+	) {
+		try {
+			return dispatcher.extractEntity(entity, partialTicks);
+		} catch (final Throwable t) {
+			if (LOGGED_EXTRACTION_FAILURES.add(entity.getType())) {
+				Cultivated.LOGGER.warn("Display entity {} threw while extracting render state; leaving it unrendered", entity.getType(), t);
+			}
+			return null;
 		}
 	}
 

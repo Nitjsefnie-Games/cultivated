@@ -98,7 +98,10 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		}
 	}
 
-	/** Crop displays render only while growth is sustained (§C.1), scaled by growth progress. */
+	/**
+	 * Crop displays render only while growth is sustained (§C.1), scaled by growth progress — except a
+	 * WAXED pot always renders its resolvable crop fully grown regardless of the soil (§B.1).
+	 */
 	private void extractCrop(
 		final BotanyPotBlockEntity pot, final PotRenderState state, final float partialTicks, final float progress, final boolean animate
 	) {
@@ -106,8 +109,10 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		if (crop == null) {
 			return;
 		}
-		if (!crop.acceptsSoil(pot.getItem(PotContext.SOIL))) {
-			return; // growth not sustained → no crop drawn (§C.1)
+		final boolean waxed = pot.getPotType().isWaxed();
+		final boolean acceptsSoil = crop.acceptsSoil(pot.getItem(PotContext.SOIL));
+		if (!PotRenderMath.shouldRenderCrop(waxed, acceptsSoil)) {
+			return; // basic/hopper: growth not sustained → no crop drawn (§C.1)
 		}
 		final float growthScale = PotRenderMath.cropScale(progress, animate);
 		final DisplayResolveContext context = this.resolveContext(pot, partialTicks, progress, growthScale);

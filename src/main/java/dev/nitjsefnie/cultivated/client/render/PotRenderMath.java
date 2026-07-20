@@ -42,6 +42,15 @@ public final class PotRenderMath {
 	}
 
 	/**
+	 * Whether a resolvable crop should be drawn (§B.1). A WAXED pot is decorative and always renders its
+	 * crop fully grown regardless of the soil ({@code true} even with no/mismatched soil); a basic/hopper
+	 * pot only renders the crop while growth is sustained, i.e. only when the soil is accepted.
+	 */
+	public static boolean shouldRenderCrop(final boolean waxed, final boolean acceptsSoil) {
+		return waxed || acceptsSoil;
+	}
+
+	/**
 	 * Phase index for a phased display (§C.3): {@code clamp(floor(progress*(count-1)), 0, count-1)}.
 	 * A single-phase (or empty) list always resolves to index 0.
 	 */

@@ -44,6 +44,20 @@ class PotRenderMathTest {
 		assertEquals(1.0f, PotRenderMath.cropScale(0.5f, false), EPS);
 	}
 
+	// ---- crop render decision: waxed always renders, others require accepted soil (§B.1) ----
+
+	@Test
+	void waxedPotRendersCropRegardlessOfSoil() {
+		assertTrue(PotRenderMath.shouldRenderCrop(true, true));
+		assertTrue(PotRenderMath.shouldRenderCrop(true, false));
+	}
+
+	@Test
+	void basicPotRendersCropOnlyWhenSoilAccepted() {
+		assertTrue(PotRenderMath.shouldRenderCrop(false, true));
+		assertFalse(PotRenderMath.shouldRenderCrop(false, false));
+	}
+
 	// ---- phase index = clamp(floor(progress * (count-1)), 0, count-1) ----
 
 	@Test
