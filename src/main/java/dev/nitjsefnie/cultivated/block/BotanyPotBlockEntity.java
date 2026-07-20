@@ -52,7 +52,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Phase B §B.3/§B.4/§B.5 — the stateful heart of the botany pot: a 15-slot world-aware container
  * ({@code SOIL=0, SEED=1, TOOL=2}, storage {@code 3..14}) that resolves its crop/soil (override
- * component first, then the sided recipe cache), grows on a tick-rate-normalised accumulator,
+ * component first, then the sided recipe cache), grows on a game-tick accumulator (one step per
+ * game tick, so {@code /tick rate} scales growth speed — §G #4, user decision 2026-07-20),
  * drives its comparator output, auto-harvests + exports (hopper pots) and holds at mature (basic
  * pots). Waxed pots are decorative and force growth to max without ticking.
  *
@@ -427,7 +428,6 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 	private void tick(final Level level) {
 		final boolean client = level.isClientSide();
-		final float rate = level.tickRateManager().tickrate();
 
 		// Resolve crop/soil once per tick (both are cache-backed) and reuse everywhere below — the
 		// light update, the waxed short-circuit and the growth body all read these same values.
@@ -452,7 +452,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 		if (crop != null) {
 			if (this.growCooldown.get() > 0.0f) {
-				this.growCooldown.tickDown(rate);
+				this.growCooldown.tickDown();
 			}
 			final boolean sustained = crop.acceptsSoil(this.getItem(PotMechanics.SOIL));
 			// R2d: a HOPPER pot whose output buffer is full pauses its growth cycle — do NOT advance
@@ -460,7 +460,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			// mature (comparator untouched) and resumes automatically the moment space frees up (an
 			// export pushed items below, or the player drained the buffer). Basic/waxed pots never gate.
 			if (this.growCooldown.get() <= 0.0f && sustained && this.canAdvanceGrowth()) {
-				this.growthTime.tickUp(rate);
+				this.growthTime.tickUp();
 				final int required = this.requiredGrowthTicks();
 				if (!client && crop.function().isPresent()) {
 					new LiveContext(this).runFunction(crop.function().get());
@@ -483,7 +483,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 		if (!client && this.potType.isHopper()) {
 			if (this.exportDelay.get() > 0.0f) {
-				this.exportDelay.tickDown(rate);
+				this.exportDelay.tickDown();
 			}
 			if (this.exportDelay.get() <= 0.0f) {
 				this.exportDelay.set(EXPORT_INTERVAL_TICKS);

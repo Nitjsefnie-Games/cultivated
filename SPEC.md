@@ -370,9 +370,11 @@ A container block entity (loot-table-capable, world-aware container):
 - **Persistent fields:** the 15-slot item list; `growth_time` (float accumulator);
   `comparator_level` (int, server-only — stripped from client sync); `export_delay`,
   `grow_cooldown` (float accumulators); `bonemeal_cooldown` (int).
-- **Accumulators:** growth/cooldown counters advance in proportion to the world's current
-  **tick rate** (a tick-rate-aware accumulator; see §G #4), so behavior is stable under
-  `/tick rate` changes.
+- **Accumulators:** growth/cooldown counters advance by a **fixed step per game tick**,
+  independent of the world's tick rate (see §G #4), so **growth advances per game tick; `/tick
+  rate` affects growth speed** — a higher rate grows crops faster, a lower rate slower, and
+  `/tick freeze` pauses growth (block entities do not tick while frozen). *User decision
+  2026-07-20, supersedes the original real-time-stable design.*
 - **Change hooks:** setting the soil or seed slot **resets** the pot (clear growth, invalidate
   cached crop/soil, reset comparator, clear bone-meal cooldown) and marks it updated; setting
   the tool slot just marks updated.
@@ -401,7 +403,7 @@ Each tick, for a non-waxed pot (waxed pots force growth to "max" and return imme
 3. Resolve crop; run its per-tick hook. Then:
    - Tick down `grow_cooldown` if > 0.
    - If `grow_cooldown ≤ 0` **and** the crop's growth is sustained (correct soil):
-     advance `growth_time` by one tick-rate-scaled step; run the crop's growth-tick hook;
+     advance `growth_time` by one fixed per-game-tick step (see §G #4); run the crop's growth-tick hook;
      compute `requiredGrowthTicks` (§A.7).
      - If `growth_time ≥ required` → set comparator to 15; set `grow_cooldown = 5` (re-check
        maturity every 5 ticks). If **hopper** and harvestable: on the server, compute yield
@@ -679,9 +681,11 @@ following **behaviors** in-mod (MIT), no Bookshelf dependency:
    conveniences.
 3. **Sided reloadable cache** — keeps independent client and server instances of a reloadable
    cache (recipe caches, soil/crop caches must not bleed across sides).
-4. **Tick accumulator** — tracks elapsed ticks as a float that advances/retreats proportionally
-   to the world's current tick rate; supports tickUp / tickDown / set / get / reset. Drives
-   growth and all pot cooldowns so they behave under variable `/tick rate`.
+4. **Tick accumulator** — tracks elapsed **game ticks** as a float, advancing/retreating by a
+   fixed step per game tick, **independent of the world's tick rate**; supports tickUp / tickDown
+   / set / get / reset. Drives growth and all pot cooldowns, so **growth advances per game tick
+   and `/tick rate` affects growth speed** (higher = faster, `/tick freeze` pauses). *User
+   decision 2026-07-20, supersedes the original real-time-stable design.*
 5. **Codec/data helpers:**
    - build a recipe serializer from a map-codec + stream-codec pair;
    - optional-value stream codec wrapper;
