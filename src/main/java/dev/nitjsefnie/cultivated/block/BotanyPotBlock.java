@@ -3,10 +3,17 @@ package dev.nitjsefnie.cultivated.block;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.nitjsefnie.cultivated.Cultivated;
+import dev.nitjsefnie.cultivated.item.UpgradeItem;
 import dev.nitjsefnie.cultivated.menu.PotMenuProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
@@ -36,6 +43,7 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -207,6 +215,12 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		final ItemStack stack, final BlockState state, final Level level, final BlockPos pos,
 		final Player player, final InteractionHand hand, final BlockHitResult hitResult
 	) {
+		// §D: a held tier-upgrade item is resolved BEFORE the fertilizer / pot-interaction recipe
+		// checks so it can never be shadowed by a data recipe. Works for every pot type (each has tier
+		// variants). A wrong-order / at-max upgrade is a no-op and does not consume the item.
+		if (stack.getItem() instanceof UpgradeItem upgrade) {
+			return this.tryUpgradePot(upgrade, state, level, pos, player, hand);
+		}
 		if (this.potType.isWaxed()) {
 			return InteractionResult.PASS; // decorative: ignores all interaction (§B.2)
 		}
@@ -264,6 +278,62 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 	protected InteractionResult openMenu(final Level level, final BlockPos pos, final Player player) {
 		if (level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot) {
 			player.openMenu(new PotMenuProvider(pot));
+		}
+		return InteractionResult.SUCCESS;
+	}
+
+	/**
+	 * §D in-place tier upgrade: convert this pot to the strict next tier ({@link TierUpgrade}),
+	 * preserving the block entity's contents + growth. Rejected (PASS, item untouched) when the held
+	 * upgrade does not target this pot's exact next tier, or when the resulting tiered block is not
+	 * registered. On success the old block entity's saved data is moved into the new tier's block
+	 * entity via a drop-suppressing block swap ({@code UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS} so the
+	 * container contents are not dropped/duped), then one upgrade is consumed unless the player is
+	 * in creative.
+	 */
+	private InteractionResult tryUpgradePot(
+		final UpgradeItem upgrade, final BlockState state, final Level level, final BlockPos pos,
+		final Player player, final InteractionHand hand
+	) {
+		if (!TierUpgrade.canUpgrade(this.tier, upgrade.targetTier())) {
+			return InteractionResult.PASS;
+		}
+		if (level.isClientSide()) {
+			return InteractionResult.SUCCESS; // server performs the authoritative swap
+		}
+		final Identifier currentId = BuiltInRegistries.BLOCK.getKey(this);
+		final String nextPath = TierUpgrade.nextTierBlockPath(currentId.getPath(), this.tier, upgrade.targetTier());
+		if (nextPath == null) {
+			return InteractionResult.PASS;
+		}
+		final Block nextBlock = BuiltInRegistries.BLOCK.getValue(Cultivated.id(nextPath));
+		if (!(nextBlock instanceof BotanyPotBlock)) {
+			return InteractionResult.PASS; // the tiered variant is not registered — do not consume
+		}
+
+		final HolderLookup.Provider registries = level.registryAccess();
+		final BlockEntity oldEntity = level.getBlockEntity(pos);
+		final CompoundTag saved = oldEntity instanceof BotanyPotBlockEntity
+			? oldEntity.saveWithoutMetadata(registries)
+			: null;
+
+		final BlockState newState = nextBlock.defaultBlockState()
+			.setValue(FACING, state.getValue(FACING))
+			.setValue(WATERLOGGED, state.getValue(WATERLOGGED))
+			.setValue(LEVEL, state.getValue(LEVEL));
+		// UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS suppresses the container-drop that a normal block
+		// replacement would trigger, so the contents survive the swap rather than dropping.
+		level.setBlock(pos, newState, Block.UPDATE_ALL | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS);
+
+		if (saved != null && level.getBlockEntity(pos) instanceof BotanyPotBlockEntity newPot) {
+			newPot.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
+			newPot.setChanged();
+			// Refresh comparators reading the pot's restored signal after the block instance changed.
+			level.updateNeighbourForOutputSignal(pos, nextBlock);
+		}
+
+		if (!player.getAbilities().instabuild) {
+			player.getItemInHand(hand).shrink(1);
 		}
 		return InteractionResult.SUCCESS;
 	}
