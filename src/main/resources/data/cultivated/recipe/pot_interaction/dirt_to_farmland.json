@@ -1,0 +1,22 @@
+{
+	"type": "cultivated:pot_interaction",
+	"held_item": "#minecraft:hoes",
+	"soil_item": ["minecraft:dirt", "minecraft:grass_block"],
+	"damage_held": true,
+	"consume_held": false,
+	"new_soil": {
+		"id": "minecraft:dirt",
+		"count": 1,
+		"components": {
+			"cultivated:soil": {
+				"input": "minecraft:dirt",
+				"growth_modifier": 0.1,
+				"display": {
+					"type": "cultivated:simple",
+					"block_state": { "Name": "minecraft:farmland", "Properties": { "moisture": "7" } }
+				}
+			}
+		}
+	},
+	"sound_effect": { "id": "minecraft:item.hoe.till" }
+}

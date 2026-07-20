@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
+import dev.nitjsefnie.cultivated.item.HopperUpgradeItem;
 import dev.nitjsefnie.cultivated.item.UpgradeItem;
 import dev.nitjsefnie.cultivated.menu.PotMenuProvider;
 import net.minecraft.core.BlockPos;
@@ -221,6 +222,12 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		if (stack.getItem() instanceof UpgradeItem upgrade) {
 			return this.tryUpgradePot(upgrade, state, level, pos, player, hand);
 		}
+		// PF4c: a held hopper-upgrade item converts a BASIC pot to the HOPPER pot of the same material +
+		// tier in place, resolved (like the tier upgrade) before any data recipe. A non-basic pot is a
+		// no-op and does not consume the item.
+		if (stack.getItem() instanceof HopperUpgradeItem) {
+			return this.tryConvertToHopper(state, level, pos, player, hand);
+		}
 		if (this.potType.isWaxed()) {
 			return InteractionResult.PASS; // decorative: ignores all interaction (§B.2)
 		}
@@ -310,7 +317,47 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		if (!(nextBlock instanceof BotanyPotBlock)) {
 			return InteractionResult.PASS; // the tiered variant is not registered — do not consume
 		}
+		return this.swapPotInPlace(nextBlock, state, level, pos, player, hand);
+	}
 
+	/**
+	 * PF4c in-place Basic→Hopper conversion ({@link HopperUpgrade}): convert this pot to the Hopper pot
+	 * of the same material + tier, preserving the block entity's contents + growth. Rejected (PASS, item
+	 * untouched) when this pot is not {@link PotType#BASIC} or the matching Hopper block is not
+	 * registered. Reuses the same drop-suppressing block swap as the tier upgrade.
+	 */
+	private InteractionResult tryConvertToHopper(
+		final BlockState state, final Level level, final BlockPos pos,
+		final Player player, final InteractionHand hand
+	) {
+		if (!HopperUpgrade.canUpgrade(this.potType)) {
+			return InteractionResult.PASS;
+		}
+		if (level.isClientSide()) {
+			return InteractionResult.SUCCESS; // server performs the authoritative swap
+		}
+		final Identifier currentId = BuiltInRegistries.BLOCK.getKey(this);
+		final String hopperPath = HopperUpgrade.hopperBlockPath(currentId.getPath(), this.potType);
+		if (hopperPath == null) {
+			return InteractionResult.PASS;
+		}
+		final Block hopperBlock = BuiltInRegistries.BLOCK.getValue(Cultivated.id(hopperPath));
+		if (!(hopperBlock instanceof BotanyPotBlock)) {
+			return InteractionResult.PASS; // the hopper variant is not registered — do not consume
+		}
+		return this.swapPotInPlace(hopperBlock, state, level, pos, player, hand);
+	}
+
+	/**
+	 * Replace this pot with {@code nextBlock} at {@code pos}, moving the old block entity's saved data
+	 * into the new pot so contents + growth survive, then consume one held item unless the player is in
+	 * creative. Shared by the tier upgrade (§D) and the Basic→Hopper conversion (PF4c); the caller has
+	 * already resolved {@code nextBlock} to a registered {@link BotanyPotBlock} and is server-side.
+	 */
+	private InteractionResult swapPotInPlace(
+		final Block nextBlock, final BlockState state, final Level level, final BlockPos pos,
+		final Player player, final InteractionHand hand
+	) {
 		final HolderLookup.Provider registries = level.registryAccess();
 		final BlockEntity oldEntity = level.getBlockEntity(pos);
 		final CompoundTag saved = oldEntity instanceof BotanyPotBlockEntity

@@ -1,0 +1,6 @@
+{
+	"model": {
+		"type": "minecraft:model",
+		"model": "cultivated:item/hopper_upgrade"
+	}
+}

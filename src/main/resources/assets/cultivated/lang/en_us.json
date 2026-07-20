@@ -736,6 +736,7 @@
 	"item.cultivated.elite_upgrade": "Elite Pot Upgrade",
 	"item.cultivated.ultra_upgrade": "Ultra Pot Upgrade",
 	"item.cultivated.mega_upgrade": "Mega Pot Upgrade",
+	"item.cultivated.hopper_upgrade": "Hopper Pot Upgrade",
 	"tooltip.cultivated.tier.hold_shift": "Hold Shift for tier bonuses",
 	"tooltip.cultivated.tier.speed": "Growth Speed: %s",
 	"tooltip.cultivated.tier.output": "Yield Bonus: %s"

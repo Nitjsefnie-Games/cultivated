@@ -1,0 +1,23 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"H": "minecraft:hopper",
+		"I": "minecraft:iron_ingot"
+	},
+	"pattern": [
+		" I ",
+		"IHI",
+		" I "
+	],
+	"result": {
+		"id": "cultivated:hopper_upgrade",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_hopper_pots"
+		}
+	]
+}

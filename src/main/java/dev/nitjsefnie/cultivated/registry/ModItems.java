@@ -3,6 +3,7 @@ package dev.nitjsefnie.cultivated.registry;
 import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.block.Tier;
 import dev.nitjsefnie.cultivated.condition.ConfigResourceCondition;
+import dev.nitjsefnie.cultivated.item.HopperUpgradeItem;
 import dev.nitjsefnie.cultivated.item.UpgradeItem;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,8 @@ public final class ModItems {
 	public static UpgradeItem ELITE_UPGRADE;
 	public static UpgradeItem ULTRA_UPGRADE;
 	public static UpgradeItem MEGA_UPGRADE;
+	/** Playtest PF4c — converts a Basic pot to the Hopper pot of the same material + tier in place. */
+	public static HopperUpgradeItem HOPPER_UPGRADE;
 
 	/** Every registered upgrade item, in registration order. Empty until {@link #register()} runs. */
 	public static final List<Item> UPGRADES = new ArrayList<>();
@@ -37,6 +40,7 @@ public final class ModItems {
 		ELITE_UPGRADE = registerUpgrade("elite_upgrade", Tier.ELITE);
 		ULTRA_UPGRADE = registerUpgrade("ultra_upgrade", Tier.ULTRA);
 		MEGA_UPGRADE = registerUpgrade("mega_upgrade", Tier.MEGA);
+		HOPPER_UPGRADE = registerHopperUpgrade("hopper_upgrade");
 		// Gate the vanilla shaped upgrade recipes on the per-tier config flags (§A.9).
 		ConfigResourceCondition.register();
 		Cultivated.LOGGER.info("Registered {} pot upgrade items", UPGRADES.size());
@@ -46,6 +50,15 @@ public final class ModItems {
 		final Identifier id = Cultivated.id(name);
 		final ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
 		final UpgradeItem item = new UpgradeItem(targetTier, new Item.Properties().setId(key));
+		Registry.register(BuiltInRegistries.ITEM, key, item);
+		UPGRADES.add(item);
+		return item;
+	}
+
+	private static HopperUpgradeItem registerHopperUpgrade(final String name) {
+		final Identifier id = Cultivated.id(name);
+		final ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
+		final HopperUpgradeItem item = new HopperUpgradeItem(new Item.Properties().setId(key));
 		Registry.register(BuiltInRegistries.ITEM, key, item);
 		UPGRADES.add(item);
 		return item;
