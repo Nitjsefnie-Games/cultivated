@@ -7,6 +7,21 @@ group = project.maven_group
 
 repositories {
 	mavenCentral()
+	// JEI (Just Enough Items)
+	maven {
+		name = "Jared's maven"
+		url = "https://maven.blamejared.com/"
+	}
+	// REI (Roughly Enough Items) + Cloth Config
+	maven {
+		name = "shedaniel maven"
+		url = "https://maven.shedaniel.me/"
+	}
+	// Architectury (REI runtime dependency)
+	maven {
+		name = "architectury maven"
+		url = "https://maven.architectury.dev/"
+	}
 }
 
 loom {
@@ -21,6 +36,21 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Optional recipe-viewer integrations. compileOnly ONLY — the viewer APIs are present at compile
+	// time so the compat/jei and compat/rei plugins compile, but the jars are NOT bundled and are NOT
+	// required at runtime: the mod builds and loads with neither viewer installed (the compat classes
+	// are reachable only via each viewer's own plugin discovery). This is a non-obfuscated (Mojang-
+	// mapped, no-intermediary) environment — like fabric-api above, mod deps are consumed directly
+	// with plain compileOnly rather than loom's remapping configurations.
+	// JEI — API jars only (the full mod jar is not needed to compile against the API).
+	compileOnly "mezz.jei:jei-${project.jei_mc_version}-common-api:${project.jei_version}"
+	compileOnly "mezz.jei:jei-${project.jei_mc_version}-fabric-api:${project.jei_version}"
+	// REI — the fabric API jar plus architectury and shedaniel's basic-math (Point/Rectangle used by
+	// the REI display/category API), both compile-time dependencies of the REI API.
+	compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${project.rei_version}"
+	compileOnly "dev.architectury:architectury-fabric:${project.architectury_version}"
+	compileOnly "me.shedaniel.cloth:basic-math:${project.basic_math_version}"
 
 	testImplementation "org.junit.jupiter:junit-jupiter:5.11.3"
 	testRuntimeOnly "org.junit.platform:junit-platform-launcher"

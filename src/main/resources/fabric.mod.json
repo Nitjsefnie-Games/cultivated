@@ -15,6 +15,9 @@
 		],
 		"client": [
 			"dev.nitjsefnie.cultivated.CultivatedClient"
+		],
+		"rei_client": [
+			"dev.nitjsefnie.cultivated.compat.rei.CultivatedReiClientPlugin"
 		]
 	},
 	"mixins": [

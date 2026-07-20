@@ -739,5 +739,12 @@
 	"item.cultivated.hopper_upgrade": "Hopper Pot Upgrade",
 	"tooltip.cultivated.tier.hold_shift": "Hold Shift for tier bonuses",
 	"tooltip.cultivated.tier.speed": "Growth Speed: %s",
-	"tooltip.cultivated.tier.output": "Yield Bonus: %s"
+	"tooltip.cultivated.tier.output": "Yield Bonus: %s",
+	"category.cultivated.crop": "Growing",
+	"category.cultivated.interaction": "Pot Interaction",
+	"gui.cultivated.viewer.grow_time": "Grow time: %s",
+	"gui.cultivated.viewer.spawn_egg_drops": "Drops the planted mob's loot",
+	"gui.cultivated.viewer.consumes_held": "Consumes the held item",
+	"gui.cultivated.viewer.damages_held": "Damages the held item",
+	"gui.cultivated.viewer.keeps_held": "Keeps the held item"
 }
