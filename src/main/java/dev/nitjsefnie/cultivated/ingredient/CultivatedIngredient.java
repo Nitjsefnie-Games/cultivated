@@ -5,8 +5,10 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
+import dev.nitjsefnie.cultivated.plugin.TypeDispatchRegistry;
 import dev.nitjsefnie.cultivated.util.CodecHelper;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
@@ -33,19 +35,27 @@ public sealed interface CultivatedIngredient extends Predicate<ItemStack> {
 	@Override
 	boolean test(ItemStack stack);
 
+	/**
+	 * Task F3 (I2) — the mutable {@code type} → sub-codec registry for the typed custom ingredients
+	 * (either/block_tag). Built-ins are seeded through the plugin path ({@link #registerBuiltins});
+	 * add-ons add new typed ingredients with {@link #register}. The plain vanilla ingredient form is
+	 * handled separately by {@link #CODEC}'s {@code either(...)} wrapper below, not via this registry.
+	 */
+	TypeDispatchRegistry<CultivatedIngredient> DISPATCH = TypeDispatchRegistry.create(CultivatedIngredient::typeId, "Unknown cultivated ingredient type: ");
+
 	/** The typed codecs (either/block_tag), dispatched by the {@code type} field. */
-	Codec<CultivatedIngredient> CUSTOM_CODEC = Codec.STRING.dispatch(
-		"type",
-		CultivatedIngredient::typeId,
-		type -> {
-			if (EITHER_TYPE.equals(type)) {
-				return Either_.MAP_CODEC;
-			} else if (BLOCK_TAG_TYPE.equals(type)) {
-				return BlockTag.MAP_CODEC;
-			}
-			throw new IllegalArgumentException("Unknown cultivated ingredient type: " + type);
-		}
-	);
+	Codec<CultivatedIngredient> CUSTOM_CODEC = DISPATCH.codec();
+
+	/** Register (or override) a typed-ingredient {@code type} → sub-codec mapping (add-on hook). */
+	static void register(final String typeId, final MapCodec<? extends CultivatedIngredient> mapCodec) {
+		DISPATCH.register(typeId, mapCodec);
+	}
+
+	/** Feed the built-in typed-ingredient types through {@code out} (used by the core plugin, §F.3). */
+	static void registerBuiltins(final BiConsumer<String, MapCodec<? extends CultivatedIngredient>> out) {
+		out.accept(EITHER_TYPE, Either_.MAP_CODEC);
+		out.accept(BLOCK_TAG_TYPE, BlockTag.MAP_CODEC);
+	}
 
 	Codec<CultivatedIngredient> CODEC = Codec.either(CUSTOM_CODEC, Ingredient.CODEC)
 		.xmap(

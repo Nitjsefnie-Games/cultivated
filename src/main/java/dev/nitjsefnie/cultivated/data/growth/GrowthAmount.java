@@ -4,7 +4,9 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
+import dev.nitjsefnie.cultivated.plugin.TypeDispatchRegistry;
 import dev.nitjsefnie.cultivated.util.MathHelper;
+import java.util.function.BiConsumer;
 import net.minecraft.util.RandomSource;
 
 /**
@@ -25,20 +27,25 @@ public sealed interface GrowthAmount {
 
 	String typeId();
 
-	Codec<GrowthAmount> CODEC = Codec.STRING.dispatch(
-		"type",
-		GrowthAmount::typeId,
-		type -> {
-			if (CONSTANT_TYPE.equals(type)) {
-				return Constant.MAP_CODEC;
-			} else if (RANGED_TYPE.equals(type)) {
-				return Ranged.MAP_CODEC;
-			} else if (PERCENT_TYPE.equals(type)) {
-				return Percent.MAP_CODEC;
-			}
-			throw new IllegalArgumentException("Unknown cultivated growth amount type: " + type);
-		}
-	);
+	/**
+	 * Task F3 (I2) — the mutable {@code type} → sub-codec registry. Built-ins are seeded through the
+	 * plugin path ({@link #registerBuiltins}); add-ons add new growth-amount types with {@link #register}.
+	 */
+	TypeDispatchRegistry<GrowthAmount> DISPATCH = TypeDispatchRegistry.create(GrowthAmount::typeId, "Unknown cultivated growth amount type: ");
+
+	Codec<GrowthAmount> CODEC = DISPATCH.codec();
+
+	/** Register (or override) a growth-amount {@code type} → sub-codec mapping (add-on hook). */
+	static void register(final String typeId, final MapCodec<? extends GrowthAmount> mapCodec) {
+		DISPATCH.register(typeId, mapCodec);
+	}
+
+	/** Feed the built-in growth-amount types through {@code out} (used by the core plugin, §F.3). */
+	static void registerBuiltins(final BiConsumer<String, MapCodec<? extends GrowthAmount>> out) {
+		out.accept(CONSTANT_TYPE, Constant.MAP_CODEC);
+		out.accept(RANGED_TYPE, Ranged.MAP_CODEC);
+		out.accept(PERCENT_TYPE, Percent.MAP_CODEC);
+	}
 
 	record Constant(int amount) implements GrowthAmount {
 		static final MapCodec<Constant> MAP_CODEC = RecordCodecBuilder.mapCodec(

@@ -7,12 +7,14 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
+import dev.nitjsefnie.cultivated.plugin.TypeDispatchRegistry;
 import dev.nitjsefnie.cultivated.recipe.PotContext;
 import dev.nitjsefnie.cultivated.util.CodecHelper;
 import dev.nitjsefnie.cultivated.util.MathHelper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -51,26 +53,29 @@ public sealed interface DropProvider {
 
 	String typeId();
 
-	Codec<DropProvider> CODEC = Codec.STRING.dispatch(
-		"type",
-		DropProvider::typeId,
-		type -> {
-			if (ITEMS_TYPE.equals(type)) {
-				return Items.MAP_CODEC;
-			} else if (LOOT_TABLE_TYPE.equals(type)) {
-				return LootTable.MAP_CODEC;
-			} else if (BLOCK_TYPE.equals(type)) {
-				return BlockDrop.MAP_CODEC;
-			} else if (BLOCK_STATE_TYPE.equals(type)) {
-				return BlockStateDrop.MAP_CODEC;
-			} else if (ENTITY_TYPE.equals(type)) {
-				return EntityDrop.MAP_CODEC;
-			}
-			throw new IllegalArgumentException("Unknown cultivated drop provider type: " + type);
-		}
-	);
+	/**
+	 * Task F3 (I2) — the mutable {@code type} → sub-codec registry. Built-ins are seeded through the
+	 * plugin path ({@link #registerBuiltins}); add-ons add new provider types with {@link #register}.
+	 */
+	TypeDispatchRegistry<DropProvider> DISPATCH = TypeDispatchRegistry.create(DropProvider::typeId, "Unknown cultivated drop provider type: ");
+
+	Codec<DropProvider> CODEC = DISPATCH.codec();
 
 	Codec<List<DropProvider>> LIST_CODEC = DropProvider.CODEC.listOf();
+
+	/** Register (or override) a drop-provider {@code type} → sub-codec mapping (add-on hook). */
+	static void register(final String typeId, final MapCodec<? extends DropProvider> mapCodec) {
+		DISPATCH.register(typeId, mapCodec);
+	}
+
+	/** Feed the built-in drop-provider types through {@code out} (used by the core plugin, §F.3). */
+	static void registerBuiltins(final BiConsumer<String, MapCodec<? extends DropProvider>> out) {
+		out.accept(ITEMS_TYPE, Items.MAP_CODEC);
+		out.accept(LOOT_TABLE_TYPE, LootTable.MAP_CODEC);
+		out.accept(BLOCK_TYPE, BlockDrop.MAP_CODEC);
+		out.accept(BLOCK_STATE_TYPE, BlockStateDrop.MAP_CODEC);
+		out.accept(ENTITY_TYPE, EntityDrop.MAP_CODEC);
+	}
 
 	/**
 	 * A tolerant {@code block} reference (C1 / §A.9): a missing block id resolves to air rather than

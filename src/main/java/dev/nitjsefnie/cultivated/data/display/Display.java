@@ -5,9 +5,11 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.data.display.RenderOptions.Vec3f;
+import dev.nitjsefnie.cultivated.plugin.TypeDispatchRegistry;
 import dev.nitjsefnie.cultivated.util.CodecHelper;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
@@ -28,27 +30,30 @@ public sealed interface Display {
 
 	String typeId();
 
-	Codec<Display> CODEC = Codec.STRING.dispatch(
-		"type",
-		Display::typeId,
-		type -> {
-			if (SIMPLE_TYPE.equals(type)) {
-				return Simple.MAP_CODEC;
-			} else if (AGING_TYPE.equals(type)) {
-				return Aging.MAP_CODEC;
-			} else if (TRANSITIONAL_TYPE.equals(type)) {
-				return Transitional.MAP_CODEC;
-			} else if (ENTITY_TYPE.equals(type)) {
-				return Entity.MAP_CODEC;
-			} else if (TEXTURED_CUBE_TYPE.equals(type)) {
-				return TexturedCube.MAP_CODEC;
-			}
-			throw new IllegalArgumentException("Unknown cultivated display type: " + type);
-		}
-	);
+	/**
+	 * Task F3 (I2) — the mutable {@code type} → sub-codec registry. Built-ins are seeded through the
+	 * plugin path ({@link #registerBuiltins}); add-ons add new display types with {@link #register}.
+	 */
+	TypeDispatchRegistry<Display> DISPATCH = TypeDispatchRegistry.create(Display::typeId, "Unknown cultivated display type: ");
+
+	Codec<Display> CODEC = DISPATCH.codec();
 
 	/** A {@code display} field accepts either a single display or a list of them (§C.2). */
 	Codec<List<Display>> LIST_CODEC = CodecHelper.flexibleList(CODEC);
+
+	/** Register (or override) a display {@code type} → sub-codec mapping (add-on hook). */
+	static void register(final String typeId, final MapCodec<? extends Display> mapCodec) {
+		DISPATCH.register(typeId, mapCodec);
+	}
+
+	/** Feed the built-in display types through {@code out} (used by the core plugin, §F.3). */
+	static void registerBuiltins(final BiConsumer<String, MapCodec<? extends Display>> out) {
+		out.accept(SIMPLE_TYPE, Simple.MAP_CODEC);
+		out.accept(AGING_TYPE, Aging.MAP_CODEC);
+		out.accept(TRANSITIONAL_TYPE, Transitional.MAP_CODEC);
+		out.accept(ENTITY_TYPE, Entity.MAP_CODEC);
+		out.accept(TEXTURED_CUBE_TYPE, TexturedCube.MAP_CODEC);
+	}
 
 	record Simple(BlockState blockState, RenderOptions options) implements Display {
 		static final MapCodec<Simple> MAP_CODEC = RecordCodecBuilder.mapCodec(

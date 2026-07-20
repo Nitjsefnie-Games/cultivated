@@ -2,11 +2,14 @@ package dev.nitjsefnie.cultivated.client.render;
 
 import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.data.display.Display;
+import dev.nitjsefnie.cultivated.plugin.CultivatedClientPlugin;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 
 /**
  * Phase C §C.2 — the display→renderer dispatch: maps each {@link Display} {@code typeId} to its bound
@@ -37,20 +40,35 @@ public final class DisplayRendererRegistry {
 		renderer.resolve(display, context, out);
 	}
 
+	/** The Fabric custom entrypoint key add-ons register their client display renderers under (§F.3). */
+	private static final String CLIENT_ENTRYPOINT_KEY = "cultivated:client_plugin";
+
 	/**
-	 * The default registry: {@code simple} (§C.4), phased {@code aging}/{@code transitional} (§C.3),
-	 * and the {@code entity} + {@code textured_cube} displays (§C.5). All renderers are stateless — the
-	 * per-frame resolvers (model/sprite/entity) flow through {@link DisplayResolveContext} — so new
-	 * display types are added by an extra {@link #register} call here without further plumbing.
+	 * The default registry, built through the client-plugin path (§F.3): the core's own renderers
+	 * ({@code simple} §C.4, phased {@code aging}/{@code transitional} §C.3, {@code entity} + {@code
+	 * textured_cube} §C.5) are bound first via {@link CultivatedCoreClientPlugin}, then every add-on
+	 * {@link CultivatedClientPlugin} declared under {@code cultivated:client_plugin} — so add-ons bind
+	 * renderers for their own display types without editing this class.
 	 */
 	public static DisplayRendererRegistry createDefault() {
 		final DisplayRendererRegistry registry = new DisplayRendererRegistry();
-		registry.register(Display.SIMPLE_TYPE, new SimpleDisplayRenderer());
-		final PhasedDisplayRenderer phased = new PhasedDisplayRenderer();
-		registry.register(Display.AGING_TYPE, phased);
-		registry.register(Display.TRANSITIONAL_TYPE, phased);
-		registry.register(Display.ENTITY_TYPE, new EntityDisplayRenderer());
-		registry.register(Display.TEXTURED_CUBE_TYPE, new TexturedCubeDisplayRenderer());
+		new CultivatedCoreClientPlugin().bindDisplayRenderers(registry);
+		for (final EntrypointContainer<CultivatedClientPlugin> container : clientPlugins()) {
+			final CultivatedClientPlugin plugin = container.getEntrypoint();
+			try {
+				plugin.bindDisplayRenderers(registry);
+			} catch (final RuntimeException failure) {
+				Cultivated.LOGGER.error("Cultivated client plugin {} failed to bind renderers", plugin.getClass().getName(), failure);
+			}
+		}
 		return registry;
+	}
+
+	private static List<EntrypointContainer<CultivatedClientPlugin>> clientPlugins() {
+		try {
+			return FabricLoader.getInstance().getEntrypointContainers(CLIENT_ENTRYPOINT_KEY, CultivatedClientPlugin.class);
+		} catch (final RuntimeException | LinkageError unavailable) {
+			return List.of();
+		}
 	}
 }

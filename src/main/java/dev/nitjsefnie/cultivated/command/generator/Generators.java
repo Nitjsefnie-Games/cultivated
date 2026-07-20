@@ -1,7 +1,6 @@
 package dev.nitjsefnie.cultivated.command.generator;
 
 import com.google.gson.JsonObject;
-import dev.nitjsefnie.cultivated.registry.ModTags;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -11,22 +10,16 @@ import net.minecraft.world.level.block.Block;
 /**
  * Phase F.2 — the pluggable generator registry. Holds the ordered crop/soil generator lists the
  * {@code generate} debug commands consult (first {@code supports} match wins), so add-ons can prepend
- * their own generators ahead of the built-in fallbacks. The built-ins are the {@link TaggedSoilGenerator}s
- * for the fluid/special soils plus the {@link FallbackCropGenerator}/{@link FallbackSoilGenerator}
- * general cases, always registered last.
+ * their own generators ahead of the built-in fallbacks. The built-in tagged fluid/special soil
+ * generators are seeded through the plugin path (Task F3 §F.3,
+ * {@link dev.nitjsefnie.cultivated.plugin.CultivatedCorePlugin}); the
+ * {@link FallbackCropGenerator}/{@link FallbackSoilGenerator} general cases are always consulted last.
  */
 public final class Generators {
 	private static final List<CropGenerator> CROP_GENERATORS = new ArrayList<>();
 	private static final List<SoilGenerator> SOIL_GENERATORS = new ArrayList<>();
 	private static final CropGenerator FALLBACK_CROP = new FallbackCropGenerator();
 	private static final SoilGenerator FALLBACK_SOIL = new FallbackSoilGenerator();
-
-	static {
-		// Built-in tagged fluid/special soils win for their tagged members, matched before the fallback.
-		SOIL_GENERATORS.add(new TaggedSoilGenerator(ModTags.SOIL_WATER, "minecraft:water", true, 0.0, 0));
-		SOIL_GENERATORS.add(new TaggedSoilGenerator(ModTags.SOIL_LAVA, "minecraft:lava", true, 0.2, 15));
-		SOIL_GENERATORS.add(new TaggedSoilGenerator(ModTags.SOIL_SNOW, "minecraft:snow_block", false, 0.0, 0));
-	}
 
 	private Generators() {
 	}

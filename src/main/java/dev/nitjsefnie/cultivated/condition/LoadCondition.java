@@ -9,7 +9,9 @@ import com.mojang.serialization.RecordBuilder;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.config.CultivatedConfig;
+import dev.nitjsefnie.cultivated.plugin.TypeDispatchRegistry;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -41,22 +43,27 @@ public sealed interface LoadCondition {
 
 	String typeId();
 
-	Codec<LoadCondition> CODEC = Codec.STRING.dispatch(
-		"type",
-		LoadCondition::typeId,
-		type -> {
-			if (BLOCK_EXISTS_TYPE.equals(type)) {
-				return BlockExists.MAP_CODEC;
-			} else if (ITEM_EXISTS_TYPE.equals(type)) {
-				return ItemExists.MAP_CODEC;
-			} else if (CONFIG_TYPE.equals(type)) {
-				return Config.MAP_CODEC;
-			}
-			throw new IllegalArgumentException("Unknown cultivated load condition type: " + type);
-		}
-	);
+	/**
+	 * Task F3 (I2) — the mutable {@code type} → sub-codec registry. Built-ins are seeded through the
+	 * plugin path ({@link #registerBuiltins}); add-ons add new condition types with {@link #register}.
+	 */
+	TypeDispatchRegistry<LoadCondition> DISPATCH = TypeDispatchRegistry.create(LoadCondition::typeId, "Unknown cultivated load condition type: ");
+
+	Codec<LoadCondition> CODEC = DISPATCH.codec();
 
 	Codec<List<LoadCondition>> LIST_CODEC = CODEC.listOf();
+
+	/** Register (or override) a load-condition {@code type} → sub-codec mapping (add-on hook). */
+	static void register(final String typeId, final MapCodec<? extends LoadCondition> mapCodec) {
+		DISPATCH.register(typeId, mapCodec);
+	}
+
+	/** Feed the built-in load-condition types through {@code out} (used by the core plugin, §F.3). */
+	static void registerBuiltins(final BiConsumer<String, MapCodec<? extends LoadCondition>> out) {
+		out.accept(BLOCK_EXISTS_TYPE, BlockExists.MAP_CODEC);
+		out.accept(ITEM_EXISTS_TYPE, ItemExists.MAP_CODEC);
+		out.accept(CONFIG_TYPE, Config.MAP_CODEC);
+	}
 
 	/**
 	 * Map-codec for the optional load-conditions field on a data file (§A.9). Decodes from either

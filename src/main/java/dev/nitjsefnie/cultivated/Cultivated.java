@@ -3,6 +3,7 @@ package dev.nitjsefnie.cultivated;
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
 import dev.nitjsefnie.cultivated.command.CultivatedCommands;
 import dev.nitjsefnie.cultivated.config.CultivatedConfigFile;
+import dev.nitjsefnie.cultivated.plugin.CultivatedPlugins;
 import dev.nitjsefnie.cultivated.registry.CultivatedRegistries;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -26,6 +27,11 @@ public class Cultivated implements ModInitializer {
 		CultivatedConfigFile.loadOrCreate();
 
 		CultivatedRegistries.register();
+
+		// Load plugins (F3 §F.3) — the core plugin seeds the built-in type-dispatched value kinds and
+		// generators, then add-on plugins register theirs — BEFORE any recipe/datapack parse, so every
+		// registered type is resolvable when the data engine first decodes JSON.
+		CultivatedPlugins.loadCommon();
 
 		// Rebuild the server-side recipe lookup caches whenever the server starts or datapacks
 		// reload, so the data engine's per-item indexes stay in sync with loaded recipe JSON.
