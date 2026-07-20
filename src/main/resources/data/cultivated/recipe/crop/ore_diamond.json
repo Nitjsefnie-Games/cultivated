@@ -3,6 +3,6 @@
 	"block": "minecraft:diamond_ore",
 	"input": "minecraft:diamond",
 	"grow_time": 12000,
-	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"soil": "minecraft:diamond_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:diamond", "count": 1 } } ] } ]
 }

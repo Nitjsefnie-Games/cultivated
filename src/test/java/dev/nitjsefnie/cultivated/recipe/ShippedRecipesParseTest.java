@@ -13,6 +13,8 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.MapCodec;
 import dev.nitjsefnie.cultivated.CultivatedTestBootstrap;
+import dev.nitjsefnie.cultivated.data.drop.DropProvider;
+import net.minecraft.world.item.ItemStack;
 import java.util.HashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
@@ -222,6 +224,73 @@ class ShippedRecipesParseTest {
 
 		assertTrue(missing.isEmpty(), "referenced loot tables are missing:\n" + String.join("\n", missing));
 		assertFalse(checked.isEmpty(), "expected at least one cultivated loot-table reference (trees)");
+	}
+
+	/**
+	 * §G#10 display-items guard: every shipped {@code cultivated:crop}/{@code block_derived_crop}
+	 * recipe must resolve to a NON-EMPTY set of viewer display items — so a "no output" crop (the
+	 * tree loot-table bug: {@code LootTable.getDisplayItems()} returned empty) fails here. Coverage
+	 * is scoped to the drop providers resolvable in a bootstrap-only run: {@code loot_table} (read
+	 * from the shipped {@code data/cultivated/loot_table/**} JSON — the crops that regressed),
+	 * {@code block} and {@code block_state} (the block's item). The {@code items} provider materialises
+	 * its stacks through {@link dev.nitjsefnie.cultivated.util.LazyItemStack}, which decodes via
+	 * {@code ItemStack.CODEC}'s bound-components path and yields empty until a datapack reload binds
+	 * components — an in-game-only condition this bootstrap test cannot reproduce — so crops whose
+	 * drops are ONLY {@code items} providers are skipped (they were never the regression).
+	 */
+	@Test
+	void everyCropRecipeResolvesToDisplayItems() throws Exception {
+		final Map<String, MapCodec<? extends Recipe<?>>> codecs = codecsByType();
+		final DynamicOps<JsonElement> ops = registryOps();
+		final List<String> failures = new ArrayList<>();
+		int coveredTrees = 0;
+		int coveredTotal = 0;
+		for (final Path file : recipeFiles()) {
+			final JsonObject json = readJson(file);
+			if (!json.has("type")) {
+				continue;
+			}
+			final String type = json.get("type").getAsString();
+			if (!"cultivated:crop".equals(type) && !"cultivated:block_derived_crop".equals(type)) {
+				continue;
+			}
+			final CropRecipe crop = (CropRecipe)codecs.get(type).codec().parse(ops, json).getOrThrow();
+			if (!coversResolvableProvider(crop)) {
+				continue; // items-only crop — cannot resolve stacks in a bootstrap-only run (see javadoc)
+			}
+			final List<ItemStack> display = new ArrayList<>();
+			for (final DropProvider provider : crop.drops()) {
+				for (final ItemStack stack : provider.getDisplayItems()) {
+					if (!stack.isEmpty()) {
+						display.add(stack);
+					}
+				}
+			}
+			if (display.isEmpty()) {
+				failures.add(file + " resolves to NO display items");
+			} else {
+				coveredTotal++;
+				if (json.toString().contains("cultivated:loot_table")) {
+					coveredTrees++;
+				}
+			}
+		}
+		assertTrue(failures.isEmpty(), "crops with no viewer output:\n" + String.join("\n", failures));
+		assertTrue(coveredTrees >= 11, "expected all 11 tree loot-table crops covered with output; got " + coveredTrees);
+		assertTrue(coveredTotal >= coveredTrees, "expected at least the tree crops covered; got " + coveredTotal);
+	}
+
+	/** True if a crop has at least one drop provider whose display items resolve in a bootstrap-only run. */
+	private static boolean coversResolvableProvider(final CropRecipe crop) {
+		for (final DropProvider provider : crop.drops()) {
+			final String type = provider.typeId();
+			if (DropProvider.LOOT_TABLE_TYPE.equals(type)
+				|| DropProvider.BLOCK_TYPE.equals(type)
+				|| DropProvider.BLOCK_STATE_TYPE.equals(type)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Recursively collect every {@code table_id}/{@code extra_drops} string value in the tree. */

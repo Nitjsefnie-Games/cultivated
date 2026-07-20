@@ -3,6 +3,6 @@
 	"block": "minecraft:redstone_ore",
 	"input": "minecraft:redstone",
 	"grow_time": 7000,
-	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"soil": "minecraft:redstone_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:redstone", "count": 4 } } ] } ]
 }

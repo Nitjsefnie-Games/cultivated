@@ -3,6 +3,6 @@
 	"block": "minecraft:coal_ore",
 	"input": "minecraft:coal",
 	"grow_time": 6000,
-	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"soil": "minecraft:coal_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:coal", "count": 1 } } ] } ]
 }

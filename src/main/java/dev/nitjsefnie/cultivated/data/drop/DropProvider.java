@@ -180,7 +180,9 @@ public sealed interface DropProvider {
 
 		@Override
 		public List<ItemStack> getDisplayItems() {
-			return List.of();
+			// §G#10 — enumerate the loot table's possible item outputs from its datapack JSON so tree/
+			// mushroom/etc. crops show their drops in REI/JEI; degrades to empty if the table is unresolvable.
+			return LootTableDisplayItems.resolve(this.tableId);
 		}
 
 		@Override

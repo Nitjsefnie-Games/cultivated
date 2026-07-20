@@ -3,6 +3,6 @@
 	"block": "minecraft:iron_ore",
 	"input": "minecraft:raw_iron",
 	"grow_time": 8000,
-	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"soil": "minecraft:iron_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:raw_iron", "count": 1 } } ] } ]
 }

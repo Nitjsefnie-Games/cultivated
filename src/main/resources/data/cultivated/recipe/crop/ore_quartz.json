@@ -3,6 +3,6 @@
 	"block": "minecraft:nether_quartz_ore",
 	"input": "minecraft:quartz",
 	"grow_time": 8000,
-	"soil": "minecraft:netherrack",
+	"soil": "minecraft:quartz_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:quartz", "count": 1 } } ] } ]
 }

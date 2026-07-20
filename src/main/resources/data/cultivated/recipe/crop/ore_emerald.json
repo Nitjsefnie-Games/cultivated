@@ -3,6 +3,6 @@
 	"block": "minecraft:emerald_ore",
 	"input": "minecraft:emerald",
 	"grow_time": 12000,
-	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"soil": "minecraft:emerald_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:emerald", "count": 1 } } ] } ]
 }

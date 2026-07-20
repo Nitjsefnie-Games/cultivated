@@ -3,6 +3,6 @@
 	"block": "minecraft:lapis_ore",
 	"input": "minecraft:lapis_lazuli",
 	"grow_time": 8000,
-	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"soil": "minecraft:lapis_block",
 	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:lapis_lazuli", "count": 5 } } ] } ]
 }
