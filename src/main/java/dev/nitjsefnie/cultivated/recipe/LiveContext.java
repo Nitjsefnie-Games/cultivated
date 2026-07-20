@@ -2,6 +2,7 @@ package dev.nitjsefnie.cultivated.recipe;
 
 import dev.nitjsefnie.cultivated.block.BotanyPotBlockEntity;
 import dev.nitjsefnie.cultivated.block.PotMechanics;
+import dev.nitjsefnie.cultivated.config.CultivatedConfig;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import java.util.Optional;
@@ -111,7 +112,14 @@ public final class LiveContext implements PotContext {
 
 	@Override
 	public ItemStack getHarvestTool() {
-		return this.pot.getHarvestTool();
+		// When the pot's TOOL slot is empty, fall back to the server-configured default harvest stack
+		// (§A.6) so a server can e.g. set silk-touch shears to make every pot yield silk-touch drops.
+		// If that config stack is also empty, behave as today (no tool).
+		final ItemStack tool = this.pot.getHarvestTool();
+		if (!tool.isEmpty()) {
+			return tool;
+		}
+		return CultivatedConfig.defaultHarvestStack();
 	}
 
 	@Override
