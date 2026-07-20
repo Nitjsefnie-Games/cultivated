@@ -2,7 +2,10 @@ package dev.nitjsefnie.cultivated.menu;
 
 import dev.nitjsefnie.cultivated.block.PotMechanics;
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
+import dev.nitjsefnie.cultivated.cache.RecipeLookupCache;
+import dev.nitjsefnie.cultivated.recipe.CropRecipe;
 import dev.nitjsefnie.cultivated.recipe.SimplePotContext;
+import dev.nitjsefnie.cultivated.recipe.SpawnEggCropRecipe;
 import dev.nitjsefnie.cultivated.registry.ModComponents;
 import dev.nitjsefnie.cultivated.registry.ModTags;
 import net.minecraft.core.BlockPos;
@@ -135,7 +138,12 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 		return PotRecipeCaches.soils(this.clientSide).lookup(stack, SimplePotContext.ofSoil(stack)) != null;
 	}
 
-	/** True if {@code stack} resolves to a crop (item override component first, then the sided cache). */
+	/**
+	 * True if {@code stack} resolves to a crop (item override component first, then the sided caches).
+	 * Mirrors the block entity's {@code computeCrop} fallback so the seed slot accepts — and shift-clicks
+	 * route to it — exactly what the pot can grow: a normal crop, OR (the generic growable-mob mechanism)
+	 * any spawn egg that derives a synthetic crop from its own entity type.
+	 */
 	protected boolean resolvesCrop(final ItemStack stack) {
 		if (stack.isEmpty()) {
 			return false;
@@ -143,6 +151,27 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 		if (stack.get(ModComponents.CROP_OVERRIDE) != null) {
 			return true;
 		}
-		return PotRecipeCaches.crops(this.clientSide).lookup(stack, SimplePotContext.ofSeed(stack)) != null;
+		return cropResolves(
+			PotRecipeCaches.crops(this.clientSide), PotRecipeCaches.spawnEggCrops(this.clientSide), stack
+		);
+	}
+
+	/**
+	 * Pure crop resolution shared with the seed-slot acceptance test and matching {@code
+	 * BotanyPotBlockEntity#computeCrop}: a stack resolves to a crop when the normal crop cache indexes it,
+	 * OR when the generic spawn-egg cache indexes it AND that recipe can {@linkplain
+	 * SpawnEggCropRecipe#resolveFor derive} a concrete crop from the stack (i.e. it is a spawn egg with a
+	 * resolvable entity type). Not one mob is special-cased — any spawn egg is placeable.
+	 */
+	static boolean cropResolves(
+		final RecipeLookupCache<CropRecipe> crops, final RecipeLookupCache<SpawnEggCropRecipe> spawnEggCrops,
+		final ItemStack stack
+	) {
+		final SimplePotContext context = SimplePotContext.ofSeed(stack);
+		if (crops.lookup(stack, context) != null) {
+			return true;
+		}
+		final SpawnEggCropRecipe eggCrop = spawnEggCrops.lookup(stack, context);
+		return eggCrop != null && eggCrop.resolveFor(stack) != null;
 	}
 }
