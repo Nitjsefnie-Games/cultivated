@@ -72,6 +72,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	private static final float MATURE_RECHECK_TICKS = 5.0f;
 
 	private final PotType potType;
+	private final Tier tier;
 	private NonNullList<ItemStack> items = NonNullList.withSize(PotMechanics.SIZE, ItemStack.EMPTY);
 	private final TickAccumulator growthTime = new TickAccumulator();
 	private final TickAccumulator growCooldown = new TickAccumulator();
@@ -85,6 +86,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	public BotanyPotBlockEntity(final BlockPos pos, final BlockState state) {
 		super(requireType(), pos, state);
 		this.potType = state.getBlock() instanceof PotType.Provider provider ? provider.potType() : PotType.BASIC;
+		this.tier = state.getBlock() instanceof Tier.Provider provider ? provider.tier() : Tier.BASE;
 	}
 
 	private static BlockEntityType<BotanyPotBlockEntity> requireType() {
@@ -98,14 +100,20 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		return this.potType;
 	}
 
-	// ---- tiers hooks (0 for base pots; overridden by tiered pots later, §D) ----
-
-	protected double growthModifier() {
-		return 0.0;
+	public Tier getTier() {
+		return this.tier;
 	}
 
-	protected double yieldModifier() {
-		return 0.0;
+	// ---- tier modifiers (§D): additive into the growth divisor (§A.7) / totalYield (§A.8); BASE = 0 ----
+
+	/** Additive pot growth-speed modifier (§A.7); 0 for base pots, the tier speed for tiered pots. */
+	public double growthModifier() {
+		return this.tier.speed();
+	}
+
+	/** Additive pot output modifier (§A.8); 0 for base pots, the tier output for tiered pots. */
+	public double yieldModifier() {
+		return this.tier.output();
 	}
 
 	// ---- container ----

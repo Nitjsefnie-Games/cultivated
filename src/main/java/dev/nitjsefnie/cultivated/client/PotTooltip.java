@@ -116,17 +116,20 @@ public final class PotTooltip {
 		final @Nullable Level level, final AbstractPotMenu menu
 	) {
 		final int required;
+		final double potYield;
 		final double soilYield;
 		final double toolYield;
 		final boolean acceptsSoil;
 		if (pot != null) {
 			required = pot.requiredGrowthTicks();
 			final SoilRecipe resolvedSoil = pot.resolveSoil();
+			potYield = pot.yieldModifier();
 			soilYield = resolvedSoil != null ? resolvedSoil.yieldModifier() : 0.0;
 			toolYield = ToolAttributes.sum(pot.getHarvestTool(), ModAttributes.YIELD);
 			acceptsSoil = crop.acceptsSoil(pot.getItem(PotMechanics.SOIL));
 		} else {
 			required = GrowthFormula.requiredGrowthTicks(crop.growTime(), 0.0, 0.0, 0.0);
+			potYield = 0.0;
 			soilYield = 0.0;
 			toolYield = 0.0;
 			acceptsSoil = true;
@@ -138,9 +141,9 @@ public final class PotTooltip {
 			PotTooltipFormatting.formatDuration(required)
 				+ " (" + PotTooltipFormatting.effectiveGameTicks(required, tickRate) + " ticks)"));
 
-		// Pot yield modifier is 0 for every core pot type (tier output multipliers are Phase D).
+		// Pot yield modifier is the live pot's additive tier output (§D); 0 for base pots.
 		final YieldBreakdown breakdown = PotTooltipFormatting.yieldBreakdown(
-			crop.yield(), crop.yieldScale(), 0.0, soilYield, toolYield
+			crop.yield(), crop.yieldScale(), potYield, soilYield, toolYield
 		);
 		lines.add(plainLine("Total yield", PotTooltipFormatting.percent(breakdown.total())));
 		lines.add(neutralSubLine("Base", breakdown.base()));

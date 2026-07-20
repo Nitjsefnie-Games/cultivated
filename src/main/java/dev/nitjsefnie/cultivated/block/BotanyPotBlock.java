@@ -56,15 +56,17 @@ import org.jspecify.annotations.Nullable;
  * (Task B4); Waxed pots ignore all interaction. Container contents drop automatically on removal via
  * the block entity's {@code preRemoveSideEffects}; the block itself self-drops through its loot table.
  */
-public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterloggedBlock, PotType.Provider {
+public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterloggedBlock, PotType.Provider, Tier.Provider {
 	public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
 	public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 	/** Emitted light level (0–15); driven by the block entity from the resolved crop/soil light. */
 	public static final IntegerProperty LEVEL = BlockStateProperties.LEVEL;
 
 	private static final Codec<PotType> POT_TYPE_CODEC = Codec.STRING.xmap(PotType::valueOf, PotType::name);
+	private static final Codec<Tier> TIER_CODEC = Codec.STRING.xmap(Tier::valueOf, Tier::name);
 
 	public static final MapCodec<BotanyPotBlock> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+		TIER_CODEC.optionalFieldOf("tier", Tier.BASE).forGetter(block -> block.tier),
 		POT_TYPE_CODEC.fieldOf("pot_type").forGetter(block -> block.potType),
 		propertiesCodec()
 	).apply(instance, BotanyPotBlock::new));
@@ -72,10 +74,17 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 	private static final VoxelShape SHAPE = Block.box(2.0, 0.0, 2.0, 14.0, 8.0, 14.0);
 
 	private final PotType potType;
+	private final Tier tier;
 
+	/** Phase B base pot ({@link Tier#BASE}); Phase D tiered pots use {@link #BotanyPotBlock(Tier, PotType, BlockBehaviour.Properties)}. */
 	public BotanyPotBlock(final PotType potType, final BlockBehaviour.Properties properties) {
+		this(Tier.BASE, potType, properties);
+	}
+
+	public BotanyPotBlock(final Tier tier, final PotType potType, final BlockBehaviour.Properties properties) {
 		super(properties);
 		this.potType = potType;
+		this.tier = tier;
 		this.registerDefaultState(this.stateDefinition.any()
 			.setValue(FACING, Direction.NORTH)
 			.setValue(WATERLOGGED, false)
@@ -85,6 +94,11 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 	@Override
 	public PotType potType() {
 		return this.potType;
+	}
+
+	@Override
+	public Tier tier() {
+		return this.tier;
 	}
 
 	@Override
