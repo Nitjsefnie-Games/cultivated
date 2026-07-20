@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import dev.nitjsefnie.cultivated.Cultivated;
@@ -51,6 +52,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
@@ -62,8 +64,10 @@ import org.jspecify.annotations.Nullable;
  * {@code missing seeds}/{@code missing soils} scan the item registry for growables/soils that lack a
  * recipe (optionally writing suggested {@code block_derived_*} JSON via the pluggable
  * {@link Generators}); {@code check_crops} places a scratch hopper pot and live-harvests every cached
- * crop with a variety of tools, reporting any that drop nothing or have no accepted soil; and
- * {@code place_seeds} fills a grid of waxed display pots with every crop (and every accepted soil).
+ * crop with a variety of tools, reporting any that drop nothing or have no accepted soil;
+ * {@code place_seeds} fills a grid of waxed display pots with every crop (and every accepted soil); and
+ * {@code perftest [count] [tiered]} spawns a roughly-cubic field of ACTIVE hopper pots (each over a
+ * chest, soil = dirt, seed = a cycled real crop) for in-client FPS / tick-time profiling.
  *
  * <p>The {@code missing …} scans are read-only, fully data-driven off {@link PotRecipeCaches}.
  * {@code place_seeds} and {@code check_crops} mutate the world: {@code place_seeds} leaves the display
@@ -97,6 +101,15 @@ public final class DebugCommands {
 					.executes(ctx -> missingSoils(ctx, false))
 					.then(Commands.argument("generate", BoolArgumentType.bool())
 						.executes(ctx -> missingSoils(ctx, BoolArgumentType.getBool(ctx, "generate"))))))
+			.then(Commands.literal("perftest")
+				.executes(ctx -> perftest(ctx, PerfTestGrid.DEFAULT_COUNT, false))
+				.then(Commands.argument("count", IntegerArgumentType.integer(1, PerfTestGrid.MAX_COUNT))
+					.executes(ctx -> perftest(ctx, IntegerArgumentType.getInteger(ctx, "count"), false))
+					.then(Commands.argument("tiered", BoolArgumentType.bool())
+						.executes(ctx -> perftest(
+							ctx,
+							IntegerArgumentType.getInteger(ctx, "count"),
+							BoolArgumentType.getBool(ctx, "tiered"))))))
 			.then(Commands.literal("check_crops")
 				.executes(DebugCommands::checkCrops))
 			.then(Commands.literal("place_seeds")
@@ -407,6 +420,130 @@ public final class DebugCommands {
 			}
 		}
 		return null;
+	}
+
+	// ---- perftest ----
+
+	/**
+	 * Spawn a roughly-cubic field of ACTIVE hopper botany pots for in-client profiling. Each unit is a
+	 * hopper pot (soil = dirt, seed = a cycled real crop seed) with a {@code minecraft:chest} directly
+	 * below it, so the pot ticks, grows, auto-harvests and exports its drops into the chest — exercising
+	 * the BE tick loop, the hopper-export path and the crop renderer under load. The pots are left
+	 * mid-growth (never forced to maturity) so they keep cycling. The field is centred on the source and
+	 * clamped to the world's build height; existing blocks are overwritten.
+	 */
+	private static int perftest(final CommandContext<CommandSourceStack> ctx, final int requestedCount, final boolean tiered) {
+		final CommandSourceStack source = ctx.getSource();
+		final ServerLevel level = source.getLevel();
+		final List<Block> hopperPots = hopperPots(tiered);
+		if (hopperPots.isEmpty()) {
+			source.sendFailure(Component.literal("No hopper botany pot block is registered"));
+			return 0;
+		}
+		final List<ItemStack> seeds = perftestSeeds();
+
+		final int count = PerfTestGrid.clampCount(requestedCount);
+		// Each unit is two blocks tall (pot + chest below), so a vertical layer needs two blocks; cap the
+		// layer count to what the build height allows and let the horizontal footprint widen to fit.
+		final int availableHeight = level.getMaxY() - level.getMinY() + 1;
+		final int maxLayers = Math.max(1, availableHeight / 2);
+		final PerfTestGrid.Layout layout = PerfTestGrid.layout(count, maxLayers);
+
+		final BlockPos origin = sourcePos(ctx);
+		final int baseX = origin.getX() - layout.nx() / 2;
+		final int baseZ = origin.getZ() - layout.nz() / 2;
+		// Centre the vertical stack on the source feet, then clamp so the lowest chest and highest pot stay
+		// inside the build height. baseY is the Y of the bottom layer's pot (its chest sits at baseY-1).
+		int baseY = origin.getY() - layout.ny() + 1;
+		if (baseY - 1 < level.getMinY()) {
+			baseY = level.getMinY() + 1;
+		}
+		final int topPotY = baseY + 2 * (layout.ny() - 1);
+		if (topPotY > level.getMaxY()) {
+			baseY -= topPotY - level.getMaxY();
+		}
+
+		final ItemStack dirt = Items.DIRT.getDefaultInstance();
+		int placed = 0;
+		for (final int[] offset : layout.offsets()) {
+			final BlockPos potPos = new BlockPos(baseX + offset[0], baseY + 2 * offset[1], baseZ + offset[2]);
+			// Place the chest first so the pot's downward export sees a container immediately below it.
+			level.setBlockAndUpdate(potPos.below(), Blocks.CHEST.defaultBlockState());
+			final Block potBlock = hopperPots.get(placed % hopperPots.size());
+			level.setBlockAndUpdate(potPos, potBlock.defaultBlockState());
+			if (level.getBlockEntity(potPos) instanceof BotanyPotBlockEntity pot) {
+				pot.setItem(PotMechanics.SOIL, dirt.copy());
+				pot.setItem(PotMechanics.SEED, seeds.get(placed % seeds.size()).copy());
+			}
+			placed++;
+		}
+
+		final int placedFinal = placed;
+		final BlockPos fieldOrigin = new BlockPos(baseX, baseY, baseZ);
+		source.sendSuccess(() -> Component.literal(
+			"Placed " + placedFinal + " active hopper pots ("
+				+ layout.nx() + "x" + layout.nz() + "x" + layout.ny() + ") from " + fieldOrigin.toShortString())
+			.withStyle(ChatFormatting.GREEN), false);
+		source.sendSuccess(() -> Component.literal(
+			"Open F3 for FPS; run /tick sprint 200 (or the profiler) for tick time.")
+			.withStyle(ChatFormatting.GRAY), false);
+		return placed;
+	}
+
+	/**
+	 * The hopper pot blocks to cycle across. Without {@code tiered}: just the first base hopper pot (a
+	 * single material). With {@code tiered}: every hopper pot of every material AND every tier, so the
+	 * field exercises the full spread of pot blocks/renderers.
+	 */
+	private static List<Block> hopperPots(final boolean tiered) {
+		final List<Block> result = new ArrayList<>();
+		if (!tiered) {
+			final Block base = firstHopperPot();
+			if (base != null) {
+				result.add(base);
+			}
+			return result;
+		}
+		for (final Block block : ModBlocks.POTS) {
+			if (isHopper(block)) {
+				result.add(block);
+			}
+		}
+		for (final List<Block> tierBlocks : ModBlocks.TIERED_POTS.values()) {
+			for (final Block block : tierBlocks) {
+				if (isHopper(block)) {
+					result.add(block);
+				}
+			}
+		}
+		return result;
+	}
+
+	private static boolean isHopper(final Block block) {
+		return block instanceof PotType.Provider provider && provider.potType().isHopper();
+	}
+
+	/**
+	 * The varied real crop seeds to cycle across the field, drawn from the crop recipe cache (every item
+	 * the cache resolves to a crop). Falls back to plain wheat seeds when the cache is empty, so the
+	 * command always plants something.
+	 */
+	private static List<ItemStack> perftestSeeds() {
+		final RecipeLookupCache<CropRecipe> crops = PotRecipeCaches.crops();
+		final List<ItemStack> seeds = new ArrayList<>();
+		for (final Item item : BuiltInRegistries.ITEM) {
+			if (!crops.isCached(item)) {
+				continue;
+			}
+			final ItemStack seed = item.getDefaultInstance();
+			if (crops.lookup(seed, matchContext()) != null) {
+				seeds.add(seed);
+			}
+		}
+		if (seeds.isEmpty()) {
+			seeds.add(Items.WHEAT_SEEDS.getDefaultInstance());
+		}
+		return seeds;
 	}
 
 	// ---- shared helpers ----
