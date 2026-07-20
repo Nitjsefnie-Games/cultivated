@@ -16,7 +16,6 @@ import dev.nitjsefnie.cultivated.CultivatedTestBootstrap;
 import java.util.HashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentInitializers;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.registries.VanillaRegistries;
@@ -53,19 +52,12 @@ class ShippedRecipesParseTest {
 	static void boot() {
 		CultivatedTestBootstrap.bootstrap();
 		provider = VanillaRegistries.createLookup();
-		bindItemComponents();
+		// Deliberately do NOT bind item data components here. In-game those are bound only on datapack
+		// load, AFTER recipes parse — so a recipe that decodes an inline ItemStack eagerly fails with
+		// "Item <id> does not have components yet". This test reproduces that unbound state exactly, so
+		// it is the real regression guard: every drop "result" and pot-interaction
+		// "new_soil"/"new_seed" must decode lazily (LazyItemStack) to pass.
 		bindReferencedItemTags();
-	}
-
-	/**
-	 * {@code Bootstrap.bootStrap()} freezes the registries but does not bind item data components —
-	 * that happens on datapack load. {@code ItemStack.CODEC} (used by drop results and pot-interaction
-	 * {@code new_soil}) rejects items whose components are unbound, so bind them here exactly as a
-	 * server reload does ({@link net.minecraft.server.ReloadableServerResources}), using the vanilla
-	 * lookup provider (which supplies the {@code damage_type} tags the fire-resistant items need).
-	 */
-	private static void bindItemComponents() {
-		BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(provider).forEach(DataComponentInitializers.PendingComponents::apply);
 	}
 
 	/**

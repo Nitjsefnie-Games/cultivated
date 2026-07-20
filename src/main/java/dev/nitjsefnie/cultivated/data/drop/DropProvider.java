@@ -10,6 +10,7 @@ import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.plugin.TypeDispatchRegistry;
 import dev.nitjsefnie.cultivated.recipe.PotContext;
 import dev.nitjsefnie.cultivated.util.CodecHelper;
+import dev.nitjsefnie.cultivated.util.LazyItemStack;
 import dev.nitjsefnie.cultivated.util.MathHelper;
 import java.util.ArrayList;
 import java.util.List;
@@ -128,7 +129,7 @@ public sealed interface DropProvider {
 		public void generateDrops(final PotContext context, final RandomSource random, final Consumer<ItemStack> out) {
 			for (final Entry entry : this.items) {
 				if (MathHelper.rollChance(random, entry.chance())) {
-					out.accept(entry.result().copy());
+					out.accept(entry.result().get().copy());
 				}
 			}
 		}
@@ -137,7 +138,7 @@ public sealed interface DropProvider {
 		public List<ItemStack> getDisplayItems() {
 			final List<ItemStack> display = new ArrayList<>(this.items.size());
 			for (final Entry entry : this.items) {
-				display.add(entry.result().copy());
+				display.add(entry.result().get().copy());
 			}
 			return display;
 		}
@@ -147,10 +148,15 @@ public sealed interface DropProvider {
 			return ITEMS_TYPE;
 		}
 
-		public record Entry(ItemStack result, float chance) {
+		/**
+		 * One drop entry. The {@code result} stack is decoded lazily ({@link LazyItemStack}) because
+		 * recipes load before item components are bound; it materialises on the first harvest/display
+		 * roll, when binding has happened.
+		 */
+		public record Entry(LazyItemStack result, float chance) {
 			static final Codec<Entry> CODEC = RecordCodecBuilder.create(
 				i -> i.group(
-						ItemStack.CODEC.fieldOf("result").forGetter(Entry::result),
+						LazyItemStack.CODEC.fieldOf("result").forGetter(Entry::result),
 						Codec.floatRange(0.0f, 1.0f).optionalFieldOf("chance", 1.0f).forGetter(Entry::chance)
 					)
 					.apply(i, Entry::new)

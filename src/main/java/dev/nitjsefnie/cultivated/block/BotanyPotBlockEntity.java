@@ -663,8 +663,8 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (this.level == null || this.level.isClientSide()) {
 			return false;
 		}
-		recipe.newSoil().ifPresent(newSoil -> this.replaceInput(PotMechanics.SOIL, newSoil));
-		recipe.newSeed().ifPresent(newSeed -> this.replaceInput(PotMechanics.SEED, newSeed));
+		recipe.newSoil().ifPresent(newSoil -> this.replaceInput(PotMechanics.SOIL, newSoil.get()));
+		recipe.newSeed().ifPresent(newSeed -> this.replaceInput(PotMechanics.SEED, newSeed.get()));
 
 		recipe.extraDrops().ifPresent(tableId -> {
 			final LiveContext context = new LiveContext(this, player, hand);

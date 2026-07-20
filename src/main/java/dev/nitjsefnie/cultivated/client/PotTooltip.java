@@ -184,9 +184,9 @@ public final class PotTooltip {
 	private static void appendInteraction(final List<Component> lines, final PotInteractionRecipe interaction) {
 		lines.add(header("Pot interaction"));
 		interaction.newSoil().ifPresent(newSoil -> lines.add(
-			Component.literal("Sets soil: ").withStyle(ChatFormatting.GRAY).append(newSoil.getHoverName())));
+			Component.literal("Sets soil: ").withStyle(ChatFormatting.GRAY).append(newSoil.get().getHoverName())));
 		interaction.newSeed().ifPresent(newSeed -> lines.add(
-			Component.literal("Sets seed: ").withStyle(ChatFormatting.GRAY).append(newSeed.getHoverName())));
+			Component.literal("Sets seed: ").withStyle(ChatFormatting.GRAY).append(newSeed.get().getHoverName())));
 	}
 
 	private static void appendTool(final List<Component> lines, final ItemStack tool) {

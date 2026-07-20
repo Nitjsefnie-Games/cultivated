@@ -6,11 +6,11 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.nitjsefnie.cultivated.condition.LoadCondition;
 import dev.nitjsefnie.cultivated.ingredient.CultivatedIngredient;
 import dev.nitjsefnie.cultivated.registry.ModRecipes;
+import dev.nitjsefnie.cultivated.util.LazyItemStack;
 import dev.nitjsefnie.cultivated.util.SoundEffect;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
@@ -26,8 +26,8 @@ public record PotInteractionRecipe(
 	boolean consumeHeld,
 	Optional<CultivatedIngredient> soilItem,
 	Optional<CultivatedIngredient> seedItem,
-	Optional<ItemStack> newSoil,
-	Optional<ItemStack> newSeed,
+	Optional<LazyItemStack> newSoil,
+	Optional<LazyItemStack> newSeed,
 	Optional<Identifier> extraDrops,
 	Optional<SoundEffect> soundEffect,
 	boolean notifySculk,
@@ -40,8 +40,8 @@ public record PotInteractionRecipe(
 				Codec.BOOL.optionalFieldOf("consume_held", false).forGetter(PotInteractionRecipe::consumeHeld),
 				CultivatedIngredient.CODEC.optionalFieldOf("soil_item").forGetter(PotInteractionRecipe::soilItem),
 				CultivatedIngredient.CODEC.optionalFieldOf("seed_item").forGetter(PotInteractionRecipe::seedItem),
-				ItemStack.CODEC.optionalFieldOf("new_soil").forGetter(PotInteractionRecipe::newSoil),
-				ItemStack.CODEC.optionalFieldOf("new_seed").forGetter(PotInteractionRecipe::newSeed),
+				LazyItemStack.CODEC.optionalFieldOf("new_soil").forGetter(PotInteractionRecipe::newSoil),
+				LazyItemStack.CODEC.optionalFieldOf("new_seed").forGetter(PotInteractionRecipe::newSeed),
 				Identifier.CODEC.optionalFieldOf("extra_drops").forGetter(PotInteractionRecipe::extraDrops),
 				SoundEffect.CODEC.optionalFieldOf("sound_effect").forGetter(PotInteractionRecipe::soundEffect),
 				Codec.BOOL.optionalFieldOf("notify_sculk", true).forGetter(PotInteractionRecipe::notifySculk),
