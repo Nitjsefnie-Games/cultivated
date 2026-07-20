@@ -111,6 +111,25 @@ public final class PotMechanics {
 		return false;
 	}
 
+	/**
+	 * True if the storage buffer (the 12 output slots, 3..14) can accept at least one more item —
+	 * i.e. at least one slot is empty or holds a non-full stack (R2d). {@code freeCapacity[i]} is the
+	 * number of additional items storage slot {@code FIRST_STORAGE + i} could hold: its stack space
+	 * for a non-full stack, or a positive value for an empty slot, and {@code 0} for a full stack.
+	 *
+	 * <p>A HOPPER pot pauses its growth cycle while this returns {@code false}, so a full pot holds at
+	 * mature instead of auto-harvesting into a buffer with nowhere to put the drops — no item loss, no
+	 * infinite re-harvest — and resumes the moment space frees up.
+	 */
+	public static boolean storageBufferHasRoom(final int[] freeCapacity) {
+		for (final int free : freeCapacity) {
+			if (free > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// ---- right-click interaction order (§B.2) — pure decision logic ----
 
 	/** The empty-hand ({@code useWithoutItem}) branch resolved for a right-click (§B.2). */

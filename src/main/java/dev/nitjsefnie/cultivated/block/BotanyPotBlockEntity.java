@@ -455,7 +455,11 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 				this.growCooldown.tickDown(rate);
 			}
 			final boolean sustained = crop.acceptsSoil(this.getItem(PotMechanics.SOIL));
-			if (this.growCooldown.get() <= 0.0f && sustained) {
+			// R2d: a HOPPER pot whose output buffer is full pauses its growth cycle — do NOT advance
+			// growthTime and do NOT auto-harvest while there is nowhere to put the drops. It holds at
+			// mature (comparator untouched) and resumes automatically the moment space frees up (an
+			// export pushed items below, or the player drained the buffer). Basic/waxed pots never gate.
+			if (this.growCooldown.get() <= 0.0f && sustained && this.canAdvanceGrowth()) {
 				this.growthTime.tickUp(rate);
 				final int required = this.requiredGrowthTicks();
 				if (!client && crop.function().isPresent()) {
@@ -749,6 +753,39 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			this.worldPosition.getX() + 0.5, this.worldPosition.getY() + 0.6, this.worldPosition.getZ() + 0.5,
 			15, 0.35, 0.35, 0.35, 0.0
 		);
+	}
+
+	/**
+	 * Whether growth may advance this tick (R2d). Only a HOPPER pot gates on buffer space: it may not
+	 * advance (grow / auto-harvest) while its output buffer is completely full, since the auto-harvest
+	 * would have nowhere to put the drops. Basic and waxed pots always return {@code true} — their
+	 * harvest paths (manual pop / none) do not depend on buffer space.
+	 */
+	private boolean canAdvanceGrowth() {
+		if (!this.potType.isHopper()) {
+			return true;
+		}
+		return PotMechanics.storageBufferHasRoom(this.storageFreeCapacity());
+	}
+
+	/**
+	 * Free capacity of each of the 12 storage slots (3..14): a positive value for an empty slot, the
+	 * remaining stack space for a non-full stack, or {@code 0} for a full stack. Mirrors the merge
+	 * limits used by {@link #insertIntoStorage} so the pause decision agrees with what a harvest could
+	 * actually deposit.
+	 */
+	private int[] storageFreeCapacity() {
+		final int[] free = new int[PotMechanics.STORAGE_COUNT];
+		for (int i = 0; i < PotMechanics.STORAGE_COUNT; i++) {
+			final ItemStack stack = this.items.get(PotMechanics.FIRST_STORAGE + i);
+			if (stack.isEmpty()) {
+				free[i] = this.getMaxStackSize();
+			} else {
+				final int max = Math.min(this.getMaxStackSize(stack), stack.getMaxStackSize());
+				free[i] = Math.max(0, max - stack.getCount());
+			}
+		}
+		return free;
 	}
 
 	/** Merge a drop into the storage slots (3..14); anything that does not fit pops above the pot. */

@@ -145,4 +145,46 @@ class PotMechanicsTest {
 	void automationPlace_neverAllowed() {
 		assertFalse(PotMechanics.canAutomationPlace());
 	}
+
+	// ---- R2d: storage-buffer room decision (a full hopper pot pauses its growth cycle) ----
+
+	@Test
+	void bufferRoom_emptyBufferHasRoom() {
+		// A completely empty buffer (every slot free) obviously has room.
+		final int[] free = new int[PotMechanics.STORAGE_COUNT];
+		java.util.Arrays.fill(free, 64);
+		assertTrue(PotMechanics.storageBufferHasRoom(free));
+	}
+
+	@Test
+	void bufferRoom_completelyFullHasNoRoom() {
+		// Every slot a full stack (free capacity 0) -> no room -> hopper pot pauses.
+		final int[] free = new int[PotMechanics.STORAGE_COUNT];
+		java.util.Arrays.fill(free, 0);
+		assertFalse(PotMechanics.storageBufferHasRoom(free));
+	}
+
+	@Test
+	void bufferRoom_oneNonFullStackHasRoom() {
+		// 11 full stacks and a single mergeable (non-full) stack -> still has room.
+		final int[] free = new int[PotMechanics.STORAGE_COUNT];
+		java.util.Arrays.fill(free, 0);
+		free[5] = 1;
+		assertTrue(PotMechanics.storageBufferHasRoom(free));
+	}
+
+	@Test
+	void bufferRoom_oneEmptySlotHasRoom() {
+		// 11 full stacks and one empty slot (positive free capacity) -> has room.
+		final int[] free = new int[PotMechanics.STORAGE_COUNT];
+		java.util.Arrays.fill(free, 0);
+		free[PotMechanics.STORAGE_COUNT - 1] = 64;
+		assertTrue(PotMechanics.storageBufferHasRoom(free));
+	}
+
+	@Test
+	void bufferRoom_emptyArrayHasNoRoom() {
+		// Degenerate: no slots at all -> no room.
+		assertFalse(PotMechanics.storageBufferHasRoom(new int[0]));
+	}
 }
