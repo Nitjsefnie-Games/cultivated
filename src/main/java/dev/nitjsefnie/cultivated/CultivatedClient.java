@@ -1,8 +1,12 @@
 package dev.nitjsefnie.cultivated;
 
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
+import dev.nitjsefnie.cultivated.client.BasicPotScreen;
+import dev.nitjsefnie.cultivated.client.HopperPotScreen;
+import dev.nitjsefnie.cultivated.registry.ModMenus;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.recipe.v1.sync.ClientRecipeSynchronizedEvent;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.core.RegistryAccess;
 
 /**
@@ -27,6 +31,12 @@ public final class CultivatedClient implements ClientModInitializer {
 				: RegistryAccess.EMPTY;
 			PotRecipeCaches.rebuildClient(syncedRecipes, registries);
 		});
-		Cultivated.LOGGER.info("Cultivated client recipe-sync wiring initialised");
+
+		// Bind the pot menu types to their screens (§B.7). The menu types are Fabric ExtendedMenuTypes,
+		// but screen registration still goes through vanilla MenuScreens#register.
+		MenuScreens.register(ModMenus.BASIC_POT, BasicPotScreen::new);
+		MenuScreens.register(ModMenus.HOPPER_POT, HopperPotScreen::new);
+
+		Cultivated.LOGGER.info("Cultivated client recipe-sync and screen wiring initialised");
 	}
 }
