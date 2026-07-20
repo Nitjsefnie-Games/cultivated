@@ -57,8 +57,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>State: {@code facing} (horizontal, set opposite the placer's look direction), {@code waterlogged},
  * and {@code level} 0–15 which the block emits as light — the block entity keeps {@code level} in
- * sync with {@code max(crop light, soil light)}. Shape is a single {@code (2,0,2)→(14,8,14)} box with
- * a MODEL render shape and no occlusion. Comparator output mirrors the block entity's stored signal.
+ * sync with {@code max(crop light, soil light)}. Shape is a single {@code (2,0,2)→(14,6,14)} box (the
+ * PF3-shortened model height, R2b) with a MODEL render shape and no occlusion. Comparator output mirrors
+ * the block entity's stored signal.
  *
  * <p>Interaction ({@link #useWithoutItem}) is a minimal server-side stub for now: Basic and Hopper
  * pots will open the pot menu (Task B3) and gain the full harvest/fertilizer/interaction order
@@ -80,7 +81,9 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		propertiesCodec()
 	).apply(instance, BotanyPotBlock::new));
 
-	private static final VoxelShape SHAPE = Block.box(2.0, 0.0, 2.0, 14.0, 8.0, 14.0);
+	// Collision/outline box matches the visible model's height: the PF3 model rises to y=6, so the box is
+	// (2,0,2)→(14,6,14) rather than the former 8-tall box that overshot the shorter planter (R2b).
+	private static final VoxelShape SHAPE = Block.box(2.0, 0.0, 2.0, 14.0, 6.0, 14.0);
 
 	private final PotType potType;
 	private final Tier tier;

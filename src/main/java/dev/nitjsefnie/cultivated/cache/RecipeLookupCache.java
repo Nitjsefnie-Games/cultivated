@@ -11,6 +11,7 @@ import java.util.Map;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -91,6 +92,32 @@ public final class RecipeLookupCache<T extends BotanyRecipe> {
 		}
 		for (final T recipe : this.uncached) {
 			if (recipe.couldMatch(stack)) {
+				return recipe;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * The first recipe that BOTH cheap-matches {@code stack} ({@link BotanyRecipe#couldMatch}) AND fully
+	 * {@link BotanyRecipe#matches} the live {@code context} — scanning the item's indexed recipes then the
+	 * uncached list. Unlike {@link #lookup}, this does not stop at the first cheap-match: when several
+	 * recipes share a primary ingredient (e.g. every {@code #minecraft:hoes} pot-interaction), each is
+	 * confirmed against the full context, so a later matching recipe is never shadowed by an earlier one
+	 * that cheap-matches the held item but fails on soil/seed. Returns {@code null} when none fully matches.
+	 */
+	@Nullable
+	public T firstMatching(final ItemStack stack, final PotContext context, final Level level) {
+		final List<T> indexed = this.byItem.get(stack.getItem());
+		if (indexed != null) {
+			for (final T recipe : indexed) {
+				if (recipe.couldMatch(stack) && recipe.matches(context, level)) {
+					return recipe;
+				}
+			}
+		}
+		for (final T recipe : this.uncached) {
+			if (recipe.couldMatch(stack) && recipe.matches(context, level)) {
 				return recipe;
 			}
 		}

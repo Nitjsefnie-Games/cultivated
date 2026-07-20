@@ -648,10 +648,15 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			return false;
 		}
 		final PotContext context = this.heldContext(held);
-		final FertilizerRecipe fertilizer = PotRecipeCaches.fertilizers(false).lookup(held, context);
-		final boolean fertilizerMatches = fertilizer != null && fertilizer.matches(context, this.level);
-		final PotInteractionRecipe interaction = PotRecipeCaches.interactions(false).lookup(held, context);
-		final boolean interactionMatches = interaction != null && interaction.matches(context, this.level);
+		// Resolve the FIRST fully-matching recipe of each kind, not merely the first that cheap-matches the
+		// held item. Several recipes can share a held ingredient (every #minecraft:hoes pot-interaction —
+		// coarse_dirt/dirt+grass/rooted_dirt); a single-result lookup would return whichever indexed first
+		// and, when its soil constraint failed, report no match while a sibling recipe (e.g. dirt→farmland)
+		// would have matched. firstMatching confirms each candidate against the live context (R2a fix).
+		final FertilizerRecipe fertilizer = PotRecipeCaches.fertilizers(false).firstMatching(held, context, this.level);
+		final boolean fertilizerMatches = fertilizer != null;
+		final PotInteractionRecipe interaction = PotRecipeCaches.interactions(false).firstMatching(held, context, this.level);
+		final boolean interactionMatches = interaction != null;
 
 		// §B.2: fertilizer (step 2) is attempted before pot-interaction (step 3); a matched-but-no-op
 		// fertilizer (cooldown / clamp) falls through so a pot-interaction can still apply.
@@ -668,8 +673,12 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (this.level == null || this.level.isClientSide()) {
 			return false;
 		}
-		recipe.newSoil().ifPresent(newSoil -> this.replaceInput(PotMechanics.SOIL, newSoil.get()));
-		recipe.newSeed().ifPresent(newSeed -> this.replaceInput(PotMechanics.SEED, newSeed.get()));
+		// Resolve the replacement soil/seed and guard against an EMPTY resolution: a new_soil/new_seed whose
+		// deferred LazyItemStack fails to decode (e.g. a bad override component) must NOT silently clear the
+		// slot — skip the replace and warn instead, so a malformed recipe never destroys the pot's soil/seed
+		// (PF1-review hardening).
+		recipe.newSoil().ifPresent(newSoil -> this.replaceInputIfResolved(PotMechanics.SOIL, newSoil.get(), "new_soil"));
+		recipe.newSeed().ifPresent(newSeed -> this.replaceInputIfResolved(PotMechanics.SEED, newSeed.get(), "new_seed"));
 
 		recipe.extraDrops().ifPresent(tableId -> {
 			final LiveContext context = new LiveContext(this, player, hand);
@@ -693,6 +702,20 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		}
 		this.setChanged();
 		return true;
+	}
+
+	/**
+	 * Replace an input slot only when {@code replacement} resolved to a non-empty stack; an empty
+	 * resolution (a new_soil/new_seed whose deferred decode failed) is skipped and logged so a malformed
+	 * recipe cannot silently clear the pot's soil/seed (PF1-review hardening).
+	 */
+	private void replaceInputIfResolved(final int slot, final ItemStack replacement, final String field) {
+		if (replacement.isEmpty()) {
+			dev.nitjsefnie.cultivated.Cultivated.LOGGER.warn(
+				"Pot-interaction {} resolved to an empty stack; keeping the existing slot contents", field);
+			return;
+		}
+		this.replaceInput(slot, replacement);
 	}
 
 	/** Replace an input slot (soil/seed), dropping any old stack above the pot (§B.6). */

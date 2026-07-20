@@ -21,8 +21,19 @@ public final class PotRenderMath {
 	public static final float CROP_MIN_SCALE = 0.40f;
 	/** …ramping the remaining 60 % linearly to full size at maturity (§C.1). */
 	public static final float CROP_SCALE_RANGE = 0.60f;
-	/** Soil is drawn compressed to roughly this fraction of a block's height (§C.1). */
-	public static final float SOIL_HEIGHT_SCALE = 0.6375f;
+	/**
+	 * The soil rests on the pot's interior floor: the PF3 model's 2-thick floor tops out at y=2 → this
+	 * fraction of a block (R2c). The soil stack is submitted from this base so its bottom sits on the floor
+	 * with no gap beneath.
+	 */
+	public static final float SOIL_BASE_Y = 2.0f / 16.0f;
+	/**
+	 * Soil is drawn vertically compressed to this fraction of the display's own scale so it fills the
+	 * shorter PF3 planter cavity (floor top y=2 to the y=6 rim, a 4-pixel depth) instead of overshooting it
+	 * (R2c — was 0.6375, tuned for the taller pre-PF3 model). With the default 0.625 display scale the soil
+	 * rises 0.625 × 0.4 = 0.25 of a block, from the floor top (0.125) to the rim (0.375).
+	 */
+	public static final float SOIL_HEIGHT_SCALE = 0.4f;
 	/** Re-centring pivot for axis-aligned rotations: the block's own centre (§C.6). */
 	public static final float ROTATION_PIVOT = 0.5f;
 
