@@ -1,0 +1,8 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:short_dry_grass",
+	"grow_time": 1000,
+	"soil": "#cultivated:soil/sand",
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:short_dry_grass", "count": 1 } } ] } ],
+	"cultivated:load_conditions": [ { "type": "cultivated:block_exists", "values": [ "minecraft:short_dry_grass" ] } ]
+}

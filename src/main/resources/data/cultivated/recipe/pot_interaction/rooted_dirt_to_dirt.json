@@ -1,0 +1,9 @@
+{
+	"type": "cultivated:pot_interaction",
+	"held_item": "#minecraft:hoes",
+	"soil_item": "minecraft:rooted_dirt",
+	"damage_held": true,
+	"consume_held": false,
+	"new_soil": { "id": "minecraft:dirt", "count": 1 },
+	"sound_effect": { "id": "minecraft:item.hoe.till" }
+}

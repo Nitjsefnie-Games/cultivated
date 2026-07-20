@@ -1,0 +1,12 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:chorus_flower",
+	"grow_time": 2400,
+	"soil": "minecraft:end_stone",
+	"drops": [
+		{ "type": "cultivated:items", "items": [
+			{ "result": { "id": "minecraft:chorus_fruit", "count": 1 } },
+			{ "result": { "id": "minecraft:chorus_flower", "count": 1 }, "chance": 0.5 }
+		] }
+	]
+}

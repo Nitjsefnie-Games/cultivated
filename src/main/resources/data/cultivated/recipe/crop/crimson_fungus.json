@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:crimson_fungus",
+	"grow_time": 2000,
+	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:netherrack", "minecraft:soul_soil" ] }
+}

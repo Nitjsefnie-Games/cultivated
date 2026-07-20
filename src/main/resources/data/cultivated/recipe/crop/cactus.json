@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:cactus",
+	"grow_time": 1400,
+	"soil": "#cultivated:soil/sand"
+}

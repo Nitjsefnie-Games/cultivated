@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:pale_oak_sapling",
+	"grow_time": 6400,
+	"drops": [ { "type": "cultivated:loot_table", "table_id": "cultivated:tree/pale_oak" } ]
+}

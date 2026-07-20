@@ -1,0 +1,7 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:cave_vines",
+	"input": "minecraft:glow_berries",
+	"grow_time": 1600,
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:glow_berries", "count": 1 } } ] } ]
+}

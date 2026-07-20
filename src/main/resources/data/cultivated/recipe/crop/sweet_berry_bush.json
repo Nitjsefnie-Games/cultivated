@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:sweet_berry_bush",
+	"input": "minecraft:sweet_berries",
+	"grow_time": 1600
+}

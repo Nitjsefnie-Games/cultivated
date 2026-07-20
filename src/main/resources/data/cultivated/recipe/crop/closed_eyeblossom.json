@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:closed_eyeblossom",
+	"grow_time": 1000,
+	"cultivated:load_conditions": [ { "type": "cultivated:block_exists", "values": [ "minecraft:closed_eyeblossom" ] } ]
+}

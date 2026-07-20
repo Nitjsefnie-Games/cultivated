@@ -1,0 +1,7 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:pitcher_crop",
+	"input": "minecraft:pitcher_pod",
+	"grow_time": 4800,
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:pitcher_plant", "count": 1 } } ] } ]
+}

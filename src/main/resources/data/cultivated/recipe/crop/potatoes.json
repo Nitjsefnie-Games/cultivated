@@ -1,6 +1,6 @@
 {
 	"type": "cultivated:block_derived_crop",
-	"block": "minecraft:wheat",
-	"input": "minecraft:wheat_seeds",
+	"block": "minecraft:potatoes",
+	"input": "minecraft:potato",
 	"grow_time": 1200
 }

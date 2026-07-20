@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:nether_wart",
+	"grow_time": 1600,
+	"soil": "minecraft:soul_sand"
+}

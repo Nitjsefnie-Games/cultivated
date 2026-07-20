@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:torchflower_crop",
+	"input": "minecraft:torchflower_seeds",
+	"grow_time": 4800
+}

@@ -1,0 +1,7 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:pumpkin",
+	"input": "minecraft:pumpkin_seeds",
+	"grow_time": 1500,
+	"drops": [ { "type": "cultivated:block", "block": "minecraft:pumpkin" } ]
+}

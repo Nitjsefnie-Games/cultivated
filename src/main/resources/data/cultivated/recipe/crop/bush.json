@@ -1,0 +1,7 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:bush",
+	"grow_time": 1400,
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:bush", "count": 1 } } ] } ],
+	"cultivated:load_conditions": [ { "type": "cultivated:block_exists", "values": [ "minecraft:bush" ] } ]
+}

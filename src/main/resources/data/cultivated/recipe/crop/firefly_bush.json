@@ -1,0 +1,8 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:firefly_bush",
+	"grow_time": 1800,
+	"light_level": 3,
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:firefly_bush", "count": 1 } } ] } ],
+	"cultivated:load_conditions": [ { "type": "cultivated:block_exists", "values": [ "minecraft:firefly_bush" ] } ]
+}

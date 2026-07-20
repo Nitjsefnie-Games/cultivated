@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:sea_pickle",
+	"grow_time": 1300,
+	"soil": "#cultivated:soil/water"
+}

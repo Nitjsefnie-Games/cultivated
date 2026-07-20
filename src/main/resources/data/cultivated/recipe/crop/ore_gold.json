@@ -1,0 +1,8 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:gold_ore",
+	"input": "minecraft:raw_gold",
+	"grow_time": 10000,
+	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:raw_gold", "count": 1 } } ] } ]
+}

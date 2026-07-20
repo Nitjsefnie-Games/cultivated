@@ -1,0 +1,21 @@
+{
+	"type": "minecraft:block",
+	"pools": [
+		{
+			"rolls": { "type": "minecraft:uniform", "min": 3.0, "max": 5.0 },
+			"entries": [ { "type": "minecraft:item", "name": "minecraft:mangrove_log" } ]
+		},
+		{
+			"rolls": { "type": "minecraft:uniform", "min": 0.0, "max": 2.0 },
+			"entries": [ { "type": "minecraft:item", "name": "minecraft:mangrove_propagule" } ]
+		},
+		{
+			"rolls": { "type": "minecraft:uniform", "min": 1.0, "max": 3.0 },
+			"entries": [ { "type": "minecraft:item", "name": "minecraft:mangrove_leaves" } ]
+		},
+		{
+			"rolls": { "type": "minecraft:uniform", "min": 0.0, "max": 2.0 },
+			"entries": [ { "type": "minecraft:item", "name": "minecraft:mangrove_roots" } ]
+		}
+	]
+}

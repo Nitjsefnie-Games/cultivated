@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:kelp",
+	"grow_time": 1000,
+	"soil": "#cultivated:soil/water"
+}

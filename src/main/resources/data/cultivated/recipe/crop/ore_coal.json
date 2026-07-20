@@ -1,0 +1,8 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:coal_ore",
+	"input": "minecraft:coal",
+	"grow_time": 6000,
+	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:stone", "minecraft:deepslate" ] },
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:coal", "count": 1 } } ] } ]
+}

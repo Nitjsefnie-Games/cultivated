@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:red_mushroom",
+	"grow_time": 1200,
+	"soil": "#cultivated:soil/mushroom"
+}

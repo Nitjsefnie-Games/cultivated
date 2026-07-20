@@ -1,0 +1,9 @@
+{
+	"type": "cultivated:pot_interaction",
+	"held_item": "minecraft:water_bucket",
+	"soil_item": "minecraft:lava_bucket",
+	"damage_held": false,
+	"consume_held": true,
+	"new_soil": { "id": "minecraft:obsidian", "count": 1 },
+	"sound_effect": { "id": "minecraft:block.lava.extinguish" }
+}

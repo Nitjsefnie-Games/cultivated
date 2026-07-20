@@ -1,0 +1,11 @@
+{
+	"type": "cultivated:soil",
+	"input": "minecraft:lava_bucket",
+	"growth_modifier": 0.2,
+	"light_level": 15,
+	"display": {
+		"type": "cultivated:simple",
+		"block_state": { "Name": "minecraft:lava" },
+		"render_fluid": true
+	}
+}

@@ -1,0 +1,7 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:mangrove_propagule",
+	"grow_time": 6000,
+	"soil": { "type": "cultivated:either", "ingredients": [ "#cultivated:soil/dirt", "minecraft:mud", "minecraft:muddy_mangrove_roots" ] },
+	"drops": [ { "type": "cultivated:loot_table", "table_id": "cultivated:tree/mangrove" } ]
+}

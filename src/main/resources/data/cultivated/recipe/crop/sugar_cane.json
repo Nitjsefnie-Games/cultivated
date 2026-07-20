@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:sugar_cane",
+	"grow_time": 1200,
+	"soil": { "type": "cultivated:either", "ingredients": [ "#cultivated:soil/dirt", "#cultivated:soil/sand" ] }
+}

@@ -1,0 +1,6 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:beetroots",
+	"input": "minecraft:beetroot_seeds",
+	"grow_time": 1400
+}

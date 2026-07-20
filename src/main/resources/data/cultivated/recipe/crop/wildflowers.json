@@ -1,0 +1,7 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:wildflowers",
+	"grow_time": 1200,
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:wildflowers", "count": 1 } } ] } ],
+	"cultivated:load_conditions": [ { "type": "cultivated:block_exists", "values": [ "minecraft:wildflowers" ] } ]
+}
