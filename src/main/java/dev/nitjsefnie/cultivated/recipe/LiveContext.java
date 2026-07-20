@@ -3,6 +3,7 @@ package dev.nitjsefnie.cultivated.recipe;
 import dev.nitjsefnie.cultivated.block.BotanyPotBlockEntity;
 import dev.nitjsefnie.cultivated.block.PotMechanics;
 import dev.nitjsefnie.cultivated.config.CultivatedConfig;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import java.util.Optional;
@@ -13,13 +14,19 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.DropChances;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.loot.LootParams;
@@ -146,7 +153,9 @@ public final class LiveContext implements PotContext {
 	}
 
 	@Override
-	public List<ItemStack> rollEntityDrops(final CompoundTag entity, final Optional<Identifier> damageSource, final RandomSource random) {
+	public List<ItemStack> rollEntityDrops(
+		final CompoundTag entity, final Optional<Identifier> damageSource, final boolean finalizeSpawn, final RandomSource random
+	) {
 		if (!(this.pot.getLevel() instanceof ServerLevel server)) {
 			return List.of();
 		}
@@ -157,22 +166,81 @@ public final class LiveContext implements PotContext {
 			if (created == null) {
 				return List.of();
 			}
-			final Optional<ResourceKey<LootTable>> key = created.getLootTable();
-			if (key.isEmpty()) {
-				return List.of();
+			final Vec3 origin = Vec3.atCenterOf(this.pot.getBlockPos());
+			// Position the throwaway mob at the pot so any position-dependent finalize/equipment logic reads
+			// a sane location (its NBT would otherwise place it at the world origin).
+			created.snapTo(origin.x, origin.y, origin.z, created.getYRot(), created.getXRot());
+			// Vanilla-faithful equipment: run the mob through its OWN finalizeSpawn (small chance armored/
+			// equipped), generically for vanilla and modded mobs — the mob's own logic decides its gear.
+			if (finalizeSpawn && created instanceof Mob mob) {
+				finalizeMob(server, mob, this.pot.getBlockPos());
 			}
-			final LootTable table = server.getServer().reloadableRegistries().getLootTable(key.get());
-			final LootParams params = new LootParams.Builder(server)
-				.withParameter(LootContextParams.THIS_ENTITY, created)
-				.withParameter(LootContextParams.ORIGIN, Vec3.atCenterOf(this.pot.getBlockPos()))
-				.withParameter(LootContextParams.DAMAGE_SOURCE, server.damageSources().generic())
-				.withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, this.player)
-				.withOptionalParameter(LootContextParams.ATTACKING_ENTITY, this.player)
-				.withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, this.player)
-				.create(LootContextParamSets.ENTITY);
-			return table.getRandomItems(params, random);
+
+			final List<ItemStack> drops = new ArrayList<>();
+			// 1) the entity's main death loot table (the existing behaviour).
+			final Optional<ResourceKey<LootTable>> key = created.getLootTable();
+			if (key.isPresent()) {
+				final LootTable table = server.getServer().reloadableRegistries().getLootTable(key.get());
+				final LootParams params = new LootParams.Builder(server)
+					.withParameter(LootContextParams.THIS_ENTITY, created)
+					.withParameter(LootContextParams.ORIGIN, origin)
+					.withParameter(LootContextParams.DAMAGE_SOURCE, server.damageSources().generic())
+					.withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, this.player)
+					.withOptionalParameter(LootContextParams.ATTACKING_ENTITY, this.player)
+					.withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, this.player)
+					.create(LootContextParamSets.ENTITY);
+				drops.addAll(table.getRandomItems(params, random));
+			}
+			// 2) worn equipment on the vanilla small per-piece chance (only meaningful once finalized).
+			if (finalizeSpawn && created instanceof Mob mob) {
+				collectEquipmentDrops(mob, random, drops);
+			}
+			return drops;
 		} catch (final RuntimeException failure) {
 			return List.of();
+		}
+	}
+
+	/** Run a detached mob through its own spawn-finalize so it has the vanilla small chance of equipment. */
+	private static void finalizeMob(final ServerLevel server, final Mob mob, final BlockPos pos) {
+		try {
+			final DifficultyInstance difficulty = server.getCurrentDifficultyAt(pos);
+			mob.finalizeSpawn(server, difficulty, EntitySpawnReason.SPAWNER, null);
+		} catch (final RuntimeException failure) {
+			// A mob whose finalize misbehaves off a detached spawn is left unequipped rather than failing
+			// the whole harvest — the death loot table still rolls.
+		}
+	}
+
+	/**
+	 * Yield a finalized mob's worn gear on the vanilla small per-piece drop chance — a clean-room mirror of
+	 * {@code Mob.dropCustomDeathLoot}'s equipment loop, driven entirely by the mob's OWN {@code DropChances}
+	 * (set by its own finalizeSpawn), so an armored zombie has the same small chance to drop its armor and
+	 * this generalizes to any modded mob without hardcoding a single item id.
+	 */
+	private static void collectEquipmentDrops(final Mob mob, final RandomSource random, final List<ItemStack> out) {
+		final DropChances dropChances = mob.getDropChances();
+		for (final EquipmentSlot slot : EquipmentSlot.VALUES) {
+			final ItemStack item = mob.getItemBySlot(slot);
+			if (item.isEmpty()) {
+				continue;
+			}
+			final float chance = dropChances.byEquipment(slot);
+			if (chance <= 0.0f) {
+				continue;
+			}
+			if (EnchantmentHelper.has(item, EnchantmentEffectComponents.PREVENT_EQUIPMENT_DROP)) {
+				continue;
+			}
+			if (random.nextFloat() < chance) {
+				final ItemStack dropped = item.copy();
+				if (!dropChances.isPreserved(slot) && dropped.isDamageableItem()) {
+					dropped.setDamageValue(
+						dropped.getMaxDamage() - random.nextInt(1 + random.nextInt(Math.max(dropped.getMaxDamage() - 3, 1)))
+					);
+				}
+				out.add(dropped);
+			}
 		}
 	}
 

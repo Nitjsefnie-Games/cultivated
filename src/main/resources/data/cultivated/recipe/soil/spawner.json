@@ -1,0 +1,10 @@
+{
+	"type": "cultivated:soil",
+	"input": "#cultivated:soil/spawner",
+	"display": {
+		"type": "cultivated:simple",
+		"block_state": {
+			"Name": "minecraft:spawner"
+		}
+	}
+}

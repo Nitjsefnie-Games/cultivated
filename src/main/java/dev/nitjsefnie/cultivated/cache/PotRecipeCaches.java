@@ -5,6 +5,7 @@ import dev.nitjsefnie.cultivated.recipe.CropRecipe;
 import dev.nitjsefnie.cultivated.recipe.FertilizerRecipe;
 import dev.nitjsefnie.cultivated.recipe.PotInteractionRecipe;
 import dev.nitjsefnie.cultivated.recipe.SoilRecipe;
+import dev.nitjsefnie.cultivated.recipe.SpawnEggCropRecipe;
 import dev.nitjsefnie.cultivated.registry.ModRecipes;
 import dev.nitjsefnie.cultivated.recipe.BotanyRecipe;
 import dev.nitjsefnie.cultivated.util.SidedReloadableCache;
@@ -42,6 +43,9 @@ public final class PotRecipeCaches {
 	private static final SidedReloadableCache<RecipeLookupCache<PotInteractionRecipe>> INTERACTIONS = SidedReloadableCache.of(
 		() -> buildClient(clientRecipes, ModRecipes.POT_INTERACTION_TYPE), () -> build(serverManager, ModRecipes.POT_INTERACTION_TYPE)
 	);
+	private static final SidedReloadableCache<RecipeLookupCache<SpawnEggCropRecipe>> SPAWN_EGG_CROPS = SidedReloadableCache.of(
+		() -> buildClient(clientRecipes, ModRecipes.SPAWN_EGG_CROP_TYPE), () -> build(serverManager, ModRecipes.SPAWN_EGG_CROP_TYPE)
+	);
 
 	private PotRecipeCaches() {
 	}
@@ -64,6 +68,10 @@ public final class PotRecipeCaches {
 		return interactions(false);
 	}
 
+	public static RecipeLookupCache<SpawnEggCropRecipe> spawnEggCrops() {
+		return spawnEggCrops(false);
+	}
+
 	// ---- sided accessors (Phase B) ----
 
 	public static RecipeLookupCache<SoilRecipe> soils(final boolean clientSide) {
@@ -82,6 +90,10 @@ public final class PotRecipeCaches {
 		return INTERACTIONS.get(clientSide);
 	}
 
+	public static RecipeLookupCache<SpawnEggCropRecipe> spawnEggCrops(final boolean clientSide) {
+		return SPAWN_EGG_CROPS.get(clientSide);
+	}
+
 	/** Rebuild the server-side caches from the loaded recipe manager (lazy — invalidate now, build on next get). */
 	public static void rebuildServer(final RecipeManager manager, final RegistryAccess registries) {
 		serverManager = manager;
@@ -89,6 +101,7 @@ public final class PotRecipeCaches {
 		CROPS.invalidate(false);
 		FERTILIZERS.invalidate(false);
 		INTERACTIONS.invalidate(false);
+		SPAWN_EGG_CROPS.invalidate(false);
 		Cultivated.LOGGER.info("Cultivated server recipe caches invalidated; will rebuild on next lookup");
 	}
 
@@ -104,6 +117,7 @@ public final class PotRecipeCaches {
 		CROPS.invalidate(true);
 		FERTILIZERS.invalidate(true);
 		INTERACTIONS.invalidate(true);
+		SPAWN_EGG_CROPS.invalidate(true);
 		Cultivated.LOGGER.info("Cultivated client recipe caches invalidated; will rebuild on next lookup");
 	}
 

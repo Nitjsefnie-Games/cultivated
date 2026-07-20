@@ -87,8 +87,14 @@ public interface PotContext extends RecipeInput {
 		return List.of();
 	}
 
-	/** Roll a living entity's death loot table, derived from NBT (§A.6). */
-	default List<ItemStack> rollEntityDrops(final CompoundTag entity, final Optional<Identifier> damageSource, final RandomSource random) {
+	/**
+	 * Roll a living entity's death loot table, derived from NBT (§A.6). When {@code finalizeSpawn} is set
+	 * the built entity is first run through its own spawn-finalize (small chance of equipment) and the roll
+	 * also yields any worn gear on the vanilla small per-piece chance (growable-mob crop).
+	 */
+	default List<ItemStack> rollEntityDrops(
+		final CompoundTag entity, final Optional<Identifier> damageSource, final boolean finalizeSpawn, final RandomSource random
+	) {
 		return List.of();
 	}
 

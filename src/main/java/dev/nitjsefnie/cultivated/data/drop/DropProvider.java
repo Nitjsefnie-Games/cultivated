@@ -256,19 +256,26 @@ public sealed interface DropProvider {
 		}
 	}
 
-	/** {@code cultivated:entity} — rolls a living entity's death loot table (Phase B). */
-	record EntityDrop(CompoundTag entity, Optional<Identifier> damageSource) implements DropProvider {
+	/**
+	 * {@code cultivated:entity} — rolls a living entity's death loot table (Phase B). When {@code
+	 * finalize_spawn} is set the entity is first run through its own {@code Mob.finalizeSpawn} (so it has
+	 * the normal small chance to spawn armored/equipped, generically for vanilla and modded mobs) and the
+	 * roll additionally yields its worn equipment on the same small vanilla per-piece drop chance — the
+	 * behaviour the generic growable-mob crop relies on. Off (the default) it is the plain death-loot roll.
+	 */
+	record EntityDrop(CompoundTag entity, Optional<Identifier> damageSource, boolean finalizeSpawn) implements DropProvider {
 		static final MapCodec<EntityDrop> MAP_CODEC = RecordCodecBuilder.mapCodec(
 			i -> i.group(
 					CompoundTag.CODEC.fieldOf("entity").forGetter(EntityDrop::entity),
-					Identifier.CODEC.optionalFieldOf("damage_source").forGetter(EntityDrop::damageSource)
+					Identifier.CODEC.optionalFieldOf("damage_source").forGetter(EntityDrop::damageSource),
+					com.mojang.serialization.Codec.BOOL.optionalFieldOf("finalize_spawn", false).forGetter(EntityDrop::finalizeSpawn)
 				)
 				.apply(i, EntityDrop::new)
 		);
 
 		@Override
 		public void generateDrops(final PotContext context, final RandomSource random, final Consumer<ItemStack> out) {
-			for (final ItemStack stack : context.rollEntityDrops(this.entity, this.damageSource, random)) {
+			for (final ItemStack stack : context.rollEntityDrops(this.entity, this.damageSource, this.finalizeSpawn, random)) {
 				out.accept(stack);
 			}
 		}

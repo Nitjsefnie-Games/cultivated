@@ -1,0 +1,5 @@
+{
+	"type": "cultivated:spawn_egg_crop",
+	"soil": "#cultivated:soil/spawner",
+	"grow_time": 6000
+}

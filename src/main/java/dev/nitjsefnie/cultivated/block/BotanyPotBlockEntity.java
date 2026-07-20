@@ -300,8 +300,19 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (this.level == null) {
 			return null;
 		}
-		final CropRecipe candidate = PotRecipeCaches.crops(this.level.isClientSide()).lookup(seed, this.matchContext());
-		return candidate != null && candidate.matches(this.matchContext(), this.level) ? candidate : null;
+		final boolean clientSide = this.level.isClientSide();
+		final CropRecipe candidate = PotRecipeCaches.crops(clientSide).lookup(seed, this.matchContext());
+		if (candidate != null && candidate.matches(this.matchContext(), this.level)) {
+			return candidate;
+		}
+		// Generic growable-mob path: a spawn egg (vanilla or modded) resolves to a synthetic crop whose
+		// entity display + equipment-aware entity death-loot drop are derived from THAT egg's entity type.
+		final dev.nitjsefnie.cultivated.recipe.SpawnEggCropRecipe eggCrop =
+			PotRecipeCaches.spawnEggCrops(clientSide).lookup(seed, this.matchContext());
+		if (eggCrop != null && eggCrop.matches(this.matchContext(), this.level)) {
+			return eggCrop.resolveFor(seed);
+		}
+		return null;
 	}
 
 	private @Nullable SoilRecipe computeSoil() {

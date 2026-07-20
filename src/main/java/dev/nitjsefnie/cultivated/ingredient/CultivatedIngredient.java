@@ -13,6 +13,7 @@ import java.util.function.Predicate;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.block.Block;
 
@@ -31,6 +32,7 @@ import net.minecraft.world.level.block.Block;
 public sealed interface CultivatedIngredient extends Predicate<ItemStack> {
 	String EITHER_TYPE = Cultivated.id("either").toString();
 	String BLOCK_TAG_TYPE = Cultivated.id("block_tag").toString();
+	String SPAWN_EGG_TYPE = Cultivated.id("spawn_egg").toString();
 
 	@Override
 	boolean test(ItemStack stack);
@@ -55,6 +57,7 @@ public sealed interface CultivatedIngredient extends Predicate<ItemStack> {
 	static void registerBuiltins(final BiConsumer<String, MapCodec<? extends CultivatedIngredient>> out) {
 		out.accept(EITHER_TYPE, Either_.MAP_CODEC);
 		out.accept(BLOCK_TAG_TYPE, BlockTag.MAP_CODEC);
+		out.accept(SPAWN_EGG_TYPE, SpawnEgg.MAP_CODEC);
 	}
 
 	Codec<CultivatedIngredient> CODEC = Codec.either(CUSTOM_CODEC, Ingredient.CODEC)
@@ -115,6 +118,28 @@ public sealed interface CultivatedIngredient extends Predicate<ItemStack> {
 		@Override
 		public String typeId() {
 			return BLOCK_TAG_TYPE;
+		}
+	}
+
+	/**
+	 * {@code cultivated:spawn_egg} — matches any spawn egg item ({@code stack.getItem() instanceof
+	 * SpawnEggItem}). Because {@link dev.nitjsefnie.cultivated.cache.RecipeLookupCache} indexes a recipe
+	 * under every registered item whose default instance this accepts, a single recipe carrying this
+	 * ingredient is indexed under EVERY spawn egg — vanilla and modded alike — so the growable-mob
+	 * mechanism is generic without enumerating any entity id.
+	 */
+	record SpawnEgg() implements CultivatedIngredient {
+		public static final SpawnEgg INSTANCE = new SpawnEgg();
+		static final MapCodec<SpawnEgg> MAP_CODEC = MapCodec.unit(INSTANCE);
+
+		@Override
+		public boolean test(final ItemStack stack) {
+			return stack.getItem() instanceof SpawnEggItem;
+		}
+
+		@Override
+		public String typeId() {
+			return SPAWN_EGG_TYPE;
 		}
 	}
 }

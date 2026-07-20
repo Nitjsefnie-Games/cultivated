@@ -6,6 +6,7 @@ import dev.nitjsefnie.cultivated.recipe.CropRecipe;
 import dev.nitjsefnie.cultivated.recipe.FertilizerRecipe;
 import dev.nitjsefnie.cultivated.recipe.PotInteractionRecipe;
 import dev.nitjsefnie.cultivated.recipe.SoilRecipe;
+import dev.nitjsefnie.cultivated.recipe.SpawnEggCropRecipe;
 import dev.nitjsefnie.cultivated.util.CodecHelper;
 import net.fabricmc.fabric.api.recipe.v1.sync.RecipeSynchronization;
 import net.minecraft.core.Registry;
@@ -29,6 +30,7 @@ public final class ModRecipes {
 	public static final RecipeType<CropRecipe> CROP_TYPE = type("crop");
 	public static final RecipeType<FertilizerRecipe> FERTILIZER_TYPE = type("fertilizer");
 	public static final RecipeType<PotInteractionRecipe> POT_INTERACTION_TYPE = type("pot_interaction");
+	public static final RecipeType<SpawnEggCropRecipe> SPAWN_EGG_CROP_TYPE = type("spawn_egg_crop");
 
 	public static final RecipeSerializer<SoilRecipe> SOIL_SERIALIZER = CodecHelper.recipeSerializer(SoilRecipe.EXPLICIT_CODEC);
 	public static final RecipeSerializer<SoilRecipe> BLOCK_DERIVED_SOIL_SERIALIZER = CodecHelper.recipeSerializer(BlockDerivedRecipes.SOIL_CODEC);
@@ -36,6 +38,7 @@ public final class ModRecipes {
 	public static final RecipeSerializer<CropRecipe> BLOCK_DERIVED_CROP_SERIALIZER = CodecHelper.recipeSerializer(BlockDerivedRecipes.CROP_CODEC);
 	public static final RecipeSerializer<FertilizerRecipe> FERTILIZER_SERIALIZER = CodecHelper.recipeSerializer(FertilizerRecipe.CODEC);
 	public static final RecipeSerializer<PotInteractionRecipe> POT_INTERACTION_SERIALIZER = CodecHelper.recipeSerializer(PotInteractionRecipe.CODEC);
+	public static final RecipeSerializer<SpawnEggCropRecipe> SPAWN_EGG_CROP_SERIALIZER = CodecHelper.recipeSerializer(SpawnEggCropRecipe.EXPLICIT_CODEC);
 
 	private ModRecipes() {
 	}
@@ -55,6 +58,7 @@ public final class ModRecipes {
 		registerType("crop", CROP_TYPE);
 		registerType("fertilizer", FERTILIZER_TYPE);
 		registerType("pot_interaction", POT_INTERACTION_TYPE);
+		registerType("spawn_egg_crop", SPAWN_EGG_CROP_TYPE);
 
 		registerSerializer("soil", SOIL_SERIALIZER);
 		registerSerializer("block_derived_soil", BLOCK_DERIVED_SOIL_SERIALIZER);
@@ -62,6 +66,7 @@ public final class ModRecipes {
 		registerSerializer("block_derived_crop", BLOCK_DERIVED_CROP_SERIALIZER);
 		registerSerializer("fertilizer", FERTILIZER_SERIALIZER);
 		registerSerializer("pot_interaction", POT_INTERACTION_SERIALIZER);
+		registerSerializer("spawn_egg_crop", SPAWN_EGG_CROP_SERIALIZER);
 
 		// Opt these recipe serializers into network sync so the client receives the full recipe
 		// objects (MC 26.2 no longer syncs recipes by default). The client cache (S2) is rebuilt
@@ -76,6 +81,7 @@ public final class ModRecipes {
 		RecipeSynchronization.synchronizeRecipeSerializer(BLOCK_DERIVED_CROP_SERIALIZER);
 		RecipeSynchronization.synchronizeRecipeSerializer(FERTILIZER_SERIALIZER);
 		RecipeSynchronization.synchronizeRecipeSerializer(POT_INTERACTION_SERIALIZER);
+		RecipeSynchronization.synchronizeRecipeSerializer(SPAWN_EGG_CROP_SERIALIZER);
 	}
 
 	private static void registerType(final String name, final RecipeType<?> type) {

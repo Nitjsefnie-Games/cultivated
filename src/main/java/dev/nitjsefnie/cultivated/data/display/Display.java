@@ -100,7 +100,7 @@ public sealed interface Display {
 	}
 
 	record Entity(CompoundTag entity, boolean shouldTick, float spinSpeed, Vec3f scale, Optional<Vec3f> offset) implements Display {
-		static final Vec3f DEFAULT_SCALE = new Vec3f(0.5f, 0.5f, 0.5f);
+		public static final Vec3f DEFAULT_SCALE = new Vec3f(0.5f, 0.5f, 0.5f);
 		static final MapCodec<Entity> MAP_CODEC = RecordCodecBuilder.mapCodec(
 			i -> i.group(
 					CompoundTag.CODEC.fieldOf("entity").forGetter(Entity::entity),

@@ -94,7 +94,9 @@ public record DisplayContext(
 	}
 
 	@Override
-	public List<ItemStack> rollEntityDrops(final CompoundTag entity, final Optional<Identifier> damageSource, final RandomSource random) {
+	public List<ItemStack> rollEntityDrops(
+		final CompoundTag entity, final Optional<Identifier> damageSource, final boolean finalizeSpawn, final RandomSource random
+	) {
 		throw new UnsupportedOperationException("DisplayContext cannot roll loot");
 	}
 

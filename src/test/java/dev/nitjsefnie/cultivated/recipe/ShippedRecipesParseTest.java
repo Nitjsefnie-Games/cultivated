@@ -68,7 +68,7 @@ class ShippedRecipesParseTest {
 	 */
 	private static void bindReferencedItemTags() {
 		final HashMap<TagKey<Item>, List<Holder<Item>>> tags = new HashMap<>();
-		for (final String soil : List.of("dirt", "sand", "water", "mushroom")) {
+		for (final String soil : List.of("dirt", "sand", "water", "mushroom", "spawner")) {
 			tags.put(itemTag("cultivated:soil/" + soil), soilTagItems(soil));
 		}
 		tags.put(itemTag("minecraft:hoes"), itemsFor(
@@ -127,7 +127,8 @@ class ShippedRecipesParseTest {
 			"cultivated:soil", SoilRecipe.EXPLICIT_CODEC,
 			"cultivated:block_derived_soil", BlockDerivedRecipes.SOIL_CODEC,
 			"cultivated:fertilizer", FertilizerRecipe.CODEC,
-			"cultivated:pot_interaction", PotInteractionRecipe.CODEC
+			"cultivated:pot_interaction", PotInteractionRecipe.CODEC,
+			"cultivated:spawn_egg_crop", SpawnEggCropRecipe.EXPLICIT_CODEC
 		);
 	}
 
