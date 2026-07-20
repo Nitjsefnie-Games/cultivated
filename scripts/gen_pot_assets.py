@@ -27,6 +27,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 ASSETS = os.path.join(ROOT, "src", "main", "resources", "assets", MODID)
 LOOT_BLOCKS = os.path.join(ROOT, "src", "main", "resources", "data", MODID, "loot_table", "blocks")
+# Fabric merges this into the vanilla minecraft:mineable/pickaxe block tag, so a pickaxe is the
+# effective/fast tool and (with .requiresCorrectToolForDrops()) is required for pot drops.
+MINEABLE_PICKAXE_TAG = os.path.join(
+    ROOT, "src", "main", "resources", "data", "minecraft", "tags", "block", "mineable", "pickaxe.json"
+)
 
 # --- material list: mirror of PotMaterials.ALL (registration order) ---------------------------------
 DYE_COLORS = [
@@ -161,6 +166,22 @@ def gen_loot_table(material: str, pot_type: str, tier: str = "") -> None:
     write_json(os.path.join(LOOT_BLOCKS, f"{name}.json"), obj)
 
 
+def gen_mineable_pickaxe_tag() -> list[str]:
+    """Write the minecraft:mineable/pickaxe block tag listing every pot variant id.
+
+    Enumerated from the same tier/material/pot-type loops as every other asset, so it can never
+    drift from the registered block list. Fabric merges these values into the vanilla tag.
+    """
+    ids = [
+        f"{MODID}:{variant_name(material, pot_type, tier)}"
+        for tier in TIERS
+        for material in MATERIALS
+        for pot_type in POT_TYPES
+    ]
+    write_json(MINEABLE_PICKAXE_TAG, {"values": ids})
+    return ids
+
+
 def gen_lang() -> dict:
     lang: dict[str, str] = {}
     lang[f"itemGroup.{MODID}.botany_pots"] = "Botany Pots"
@@ -272,12 +293,14 @@ def main() -> None:
 
     lang = gen_lang()
     gui = gen_gui_textures()
+    mineable = gen_mineable_pickaxe_tag()
 
     per_tier = len(MATERIALS) * len(POT_TYPES)
     n = per_tier * len(TIERS)
     tiered = per_tier * (len(TIERS) - 1)
     print(f"materials={len(MATERIALS)} tiers={len(TIERS)} (base + {len(TIERS) - 1}) variants={n} (base {per_tier} + tiered {tiered})")
     print(f"blockstates={n} block_models={n} item_models={n} loot_tables={n}")
+    print(f"mineable/pickaxe tag ids={len(mineable)}")
     print(f"lang_entries={len(lang)} (1 item group + {n} blocks)")
     print(f"gui_textures={len(gui)}: " + ", ".join(os.path.relpath(p, ROOT) for p in gui))
 

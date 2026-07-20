@@ -85,6 +85,8 @@ public final class ModBlocks {
 			.mapColor(mapColor)
 			.strength(HARDNESS, RESISTANCE)
 			.sound(SoundType.STONE)
+			// pots are terracotta/brick/stone — require the correct tool (pickaxe) for drops
+			.requiresCorrectToolForDrops()
 			.noOcclusion()
 			// light emission follows the block-entity-driven LEVEL state (§B.1)
 			.lightLevel(state -> state.getValue(BotanyPotBlock.LEVEL))

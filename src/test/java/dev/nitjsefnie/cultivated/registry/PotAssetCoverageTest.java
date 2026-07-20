@@ -217,4 +217,25 @@ class PotAssetCoverageTest {
 		}
 		assertEquals(EXPECTED_VARIANTS + EXPECTED_TIERED_VARIANTS, checked);
 	}
+
+	@Test
+	void mineablePickaxeTagCoversEveryVariant() {
+		final JsonObject tag = readJson("/data/minecraft/tags/block/mineable/pickaxe.json");
+		final java.util.Set<String> values = new java.util.HashSet<>();
+		tag.getAsJsonArray("values").forEach(e -> values.add(e.getAsString()));
+		final Tier[] all = {Tier.BASE, Tier.ELITE, Tier.ULTRA, Tier.MEGA};
+		int expected = 0;
+		for (final Tier tier : all) {
+			for (final String material : PotMaterials.ALL) {
+				for (final PotType type : PotType.values()) {
+					final String id = "cultivated:" + variantName(tier, material, type);
+					assertTrue(values.contains(id), "mineable/pickaxe tag missing " + id);
+					expected++;
+				}
+			}
+		}
+		assertEquals(EXPECTED_VARIANTS + EXPECTED_TIERED_VARIANTS, expected);
+		assertEquals(expected, values.size(),
+			"mineable/pickaxe tag has unexpected extra ids: " + values.size() + " vs " + expected);
+	}
 }
