@@ -1,7 +1,44 @@
 {
-	"__comment": "Cultivated Task B6 - hand-authored basic botany pot template. Hollow 8-tall planter matching the (2,0,2)->(14,8,14) collision box (SPEC B.1): a 2-thick floor plus four walls, open top. Per-material models override #material (outer faces) and #material_top (interior floor). render_type=cutout is set per child model (Fabric-only, no code-side render-layer API in 26.2).",
+	"__comment": "Cultivated Task B6 / PF3 - hand-authored basic botany pot template. Hollow planter: a 2-thick floor plus four 1.5-thick walls, open top, rising to y=6 (the visible model is deliberately shorter and thinner-walled than the (2,0,2)->(14,8,14) SPEC B.1 collision box, which is unchanged). Per-material models override #material (outer faces) and #material_top (interior floor). The `display` block is the standard vanilla minecraft:block/block transform set so pot ITEMS render as the 3D isometric corner view; it is inherited down the parent chain by every variant. render_type=cutout is set per child model (Fabric-only, no code-side render-layer API in 26.2).",
 	"textures": {
 		"particle": "#material"
+	},
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [75, 45, 0],
+			"translation": [0, 2.5, 0],
+			"scale": [0.375, 0.375, 0.375]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [75, 45, 0],
+			"translation": [0, 2.5, 0],
+			"scale": [0.375, 0.375, 0.375]
+		},
+		"firstperson_righthand": {
+			"rotation": [0, 45, 0],
+			"translation": [0, 0, 0],
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"firstperson_lefthand": {
+			"rotation": [0, 225, 0],
+			"translation": [0, 0, 0],
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"ground": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 3, 0],
+			"scale": [0.25, 0.25, 0.25]
+		},
+		"gui": {
+			"rotation": [30, 225, 0],
+			"translation": [0, 0, 0],
+			"scale": [0.625, 0.625, 0.625]
+		},
+		"fixed": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 0, 0],
+			"scale": [0.5, 0.5, 0.5]
+		}
 	},
 	"elements": [
 		{
@@ -20,7 +57,7 @@
 		{
 			"__comment": "north wall",
 			"from": [2, 2, 2],
-			"to": [14, 8, 4],
+			"to": [14, 6, 3.5],
 			"faces": {
 				"up": { "texture": "#material" },
 				"north": { "texture": "#material" },
@@ -31,8 +68,8 @@
 		},
 		{
 			"__comment": "south wall",
-			"from": [2, 2, 12],
-			"to": [14, 8, 14],
+			"from": [2, 2, 12.5],
+			"to": [14, 6, 14],
 			"faces": {
 				"up": { "texture": "#material" },
 				"north": { "texture": "#material" },
@@ -43,8 +80,8 @@
 		},
 		{
 			"__comment": "west wall",
-			"from": [2, 2, 4],
-			"to": [4, 8, 12],
+			"from": [2, 2, 3.5],
+			"to": [3.5, 6, 12.5],
 			"faces": {
 				"up": { "texture": "#material" },
 				"north": { "texture": "#material" },
@@ -55,8 +92,8 @@
 		},
 		{
 			"__comment": "east wall",
-			"from": [12, 2, 4],
-			"to": [14, 8, 12],
+			"from": [12.5, 2, 3.5],
+			"to": [14, 6, 12.5],
 			"faces": {
 				"up": { "texture": "#material" },
 				"north": { "texture": "#material" },
