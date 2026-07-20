@@ -24,6 +24,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.particles.ParticleTypes;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -533,6 +535,62 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.setChanged();
 		this.syncToClients();
 		return true;
+	}
+
+	/**
+	 * Force this pot's crop to full maturity (§F.2 debug tooling): set the growth accumulator to the
+	 * crop's required ticks and refresh the comparator + emitted light, so display/test pots show a
+	 * fully-grown crop and read as harvestable. Server-authoritative for the comparator; a no-op
+	 * without a level. Does not roll drops. Reuses {@link #requiredGrowthTicks()}/{@link #updateLightLevel}.
+	 */
+	public void forceFullGrowth() {
+		if (this.level == null) {
+			return;
+		}
+		final CropRecipe crop = this.resolveCrop();
+		final SoilRecipe soil = this.resolveSoil();
+		final int required = crop != null ? this.requiredGrowthTicks() : 0;
+		this.growthTime.set(Math.max(required, 1));
+		this.updateLightLevel(this.level, crop, soil);
+		if (!this.level.isClientSide()) {
+			this.setComparatorLevel(crop != null ? PotMechanics.MATURE_SIGNAL : 0);
+		}
+		this.setChanged();
+		this.syncToClients();
+	}
+
+	/**
+	 * Roll this pot's crop drop providers once using {@code tool} as the harvest tool for the loot
+	 * context (§F.2 debug audit), collecting the produced non-empty stacks. Does not mutate the
+	 * world, growth or comparator: the TOOL slot is swapped in only for the duration of the roll and
+	 * restored in a {@code finally}. Returns an empty list when there is no server level or no
+	 * resolved crop. Reuses the same {@link LiveContext}/{@link DropProvider} path as the live harvest.
+	 */
+	public List<ItemStack> collectHarvestDrops(final ItemStack tool) {
+		if (!(this.level instanceof ServerLevel server)) {
+			return List.of();
+		}
+		final CropRecipe crop = this.resolveCrop();
+		if (crop == null) {
+			return List.of();
+		}
+		final ItemStack previousTool = this.items.get(PotMechanics.TOOL);
+		this.items.set(PotMechanics.TOOL, tool);
+		try {
+			final LiveContext context = new LiveContext(this);
+			final RandomSource random = server.getRandom();
+			final List<ItemStack> drops = new ArrayList<>();
+			for (final DropProvider drop : crop.drops()) {
+				drop.generateDrops(context, random, stack -> {
+					if (!stack.isEmpty()) {
+						drops.add(stack);
+					}
+				});
+			}
+			return drops;
+		} finally {
+			this.items.set(PotMechanics.TOOL, previousTool);
+		}
 	}
 
 	/** Fertilizer application (§A.5): clamped growth, cooldown, effects, consume held (unless creative). */

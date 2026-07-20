@@ -33,31 +33,43 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Phase F.2 — the owner-only {@code /cultivated debug} subtree: datapack QA tooling. Four commands:
  * {@code missing seeds}/{@code missing soils} scan the item registry for growables/soils that lack a
  * recipe (optionally writing suggested {@code block_derived_*} JSON via the pluggable
- * {@link Generators}); {@code check_crops} reports cached crops with no drops or no valid soil; and
+ * {@link Generators}); {@code check_crops} places a scratch hopper pot and live-harvests every cached
+ * crop with a variety of tools, reporting any that drop nothing or have no accepted soil; and
  * {@code place_seeds} fills a grid of waxed display pots with every crop (and every accepted soil).
  *
- * <p>Read-only commands ({@code missing …}, {@code check_crops}) are fully data-driven off
- * {@link PotRecipeCaches}. {@code place_seeds} mutates the world; {@code check_crops}'s per-tool live
- * harvest is intentionally reduced to a static drops/soil audit because forcing crop maturity needs
- * internal block-entity access outside this task's scope.
+ * <p>The {@code missing …} scans are read-only, fully data-driven off {@link PotRecipeCaches}.
+ * {@code place_seeds} and {@code check_crops} mutate the world: {@code place_seeds} leaves the display
+ * pots in place (forced to full growth); {@code check_crops} places one temporary pot, forces each
+ * crop to maturity through {@link BotanyPotBlockEntity#forceFullGrowth()}, collects its per-tool drops
+ * via {@link BotanyPotBlockEntity#collectHarvestDrops(ItemStack)}, then restores the original block.
  */
 public final class DebugCommands {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -189,27 +201,78 @@ public final class DebugCommands {
 
 	private static int checkCrops(final CommandContext<CommandSourceStack> ctx) {
 		final CommandSourceStack source = ctx.getSource();
+		final ServerLevel level = source.getLevel();
 		final RecipeLookupCache<CropRecipe> crops = PotRecipeCaches.crops();
 		final RecipeLookupCache<SoilRecipe> soils = PotRecipeCaches.soils();
+
+		final Block hopperPot = firstHopperPot();
+		if (hopperPot == null) {
+			source.sendFailure(Component.literal("No hopper botany pot block is registered"));
+			return 0;
+		}
+
+		// A scratch position above the command source, restored afterwards. Placed in what is usually
+		// air above the caller's head to minimise collateral; the original block + any block-entity
+		// metadata are captured and re-applied in the finally block regardless.
+		final BlockPos testPos = sourcePos(ctx).above(2);
+		final BlockState originalState = level.getBlockState(testPos);
+		final BlockEntity originalBe = level.getBlockEntity(testPos);
+		final CompoundTag originalBeTag = originalBe != null ? originalBe.saveWithFullMetadata(level.registryAccess()) : null;
+		final List<ItemStack> tools = harvestTools(level);
+
 		int checked = 0;
 		int problems = 0;
+		try {
+			level.setBlockAndUpdate(testPos, hopperPot.defaultBlockState());
+			if (!(level.getBlockEntity(testPos) instanceof BotanyPotBlockEntity pot)) {
+				source.sendFailure(Component.literal("Failed to place a test botany pot"));
+				return 0;
+			}
+			for (final Item item : BuiltInRegistries.ITEM) {
+				if (!crops.isCached(item)) {
+					continue;
+				}
+				final ItemStack seed = item.getDefaultInstance();
+				final CropRecipe crop = crops.lookup(seed, matchContext());
+				if (crop == null) {
+					continue;
+				}
+				checked++;
+				final Identifier id = BuiltInRegistries.ITEM.getKey(item);
+				final ItemStack soil = pickAcceptedSoil(soils, crop);
+				final boolean hasSoil = soil != null;
 
-		for (final Item item : BuiltInRegistries.ITEM) {
-			if (!crops.isCached(item)) {
-				continue;
+				pot.setItem(PotMechanics.SEED, seed.copy());
+				pot.setItem(PotMechanics.SOIL, hasSoil ? soil.copy() : ItemStack.EMPTY);
+				pot.forceFullGrowth();
+
+				final List<List<ItemStack>> perToolDrops = new ArrayList<>(tools.size());
+				for (final ItemStack tool : tools) {
+					perToolDrops.add(pot.collectHarvestDrops(tool.copy()));
+				}
+				// A crop whose only output is an mcfunction (no drop providers) is not a "no drops" fault.
+				final boolean hasDrops = !HarvestAudit.producedNothing(perToolDrops) || crop.function().isPresent();
+
+				if (!hasDrops || !hasSoil) {
+					problems++;
+					final String reason = (!hasDrops ? "no drops" : "")
+						+ (!hasDrops && !hasSoil ? ", " : "")
+						+ (!hasSoil ? "no valid soil" : "");
+					source.sendSuccess(() -> Component.literal(id + " — " + reason).withStyle(ChatFormatting.RED), false);
+				}
+
+				pot.setItem(PotMechanics.SEED, ItemStack.EMPTY);
+				pot.setItem(PotMechanics.SOIL, ItemStack.EMPTY);
 			}
-			final CropRecipe crop = crops.lookup(item.getDefaultInstance(), matchContext());
-			if (crop == null) {
-				continue;
-			}
-			checked++;
-			final Identifier id = BuiltInRegistries.ITEM.getKey(item);
-			final boolean hasDrops = !crop.drops().isEmpty() || crop.function().isPresent();
-			final boolean hasSoil = hasAcceptedSoil(soils, crop);
-			if (!hasDrops || !hasSoil) {
-				problems++;
-				final String reason = (!hasDrops ? "no drops" : "") + (!hasDrops && !hasSoil ? ", " : "") + (!hasSoil ? "no valid soil" : "");
-				source.sendSuccess(() -> Component.literal(id + " — " + reason).withStyle(ChatFormatting.RED), false);
+		} finally {
+			level.setBlockAndUpdate(testPos, originalState);
+			if (originalBeTag != null) {
+				final BlockEntity restored = level.getBlockEntity(testPos);
+				if (restored != null) {
+					restored.loadWithComponents(
+						TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), originalBeTag));
+					restored.setChanged();
+				}
 			}
 		}
 
@@ -221,14 +284,51 @@ public final class DebugCommands {
 		return problems;
 	}
 
-	private static boolean hasAcceptedSoil(final RecipeLookupCache<SoilRecipe> soils, final CropRecipe crop) {
+	/**
+	 * The first cached soil the crop accepts, else the vanilla dirt item when the crop's default
+	 * (dirt-tag) soil accepts it, else {@code null} — the crop has no accepted soil and is reported.
+	 */
+	private static @Nullable ItemStack pickAcceptedSoil(final RecipeLookupCache<SoilRecipe> soils, final CropRecipe crop) {
 		for (final Item item : BuiltInRegistries.ITEM) {
-			if (soils.isCached(item) && crop.acceptsSoil(item.getDefaultInstance())) {
-				return true;
+			if (!soils.isCached(item)) {
+				continue;
+			}
+			final ItemStack stack = item.getDefaultInstance();
+			if (crop.acceptsSoil(stack)) {
+				return stack;
 			}
 		}
-		// A crop with default (dirt-tag) soil is satisfied by the vanilla dirt item.
-		return crop.acceptsSoil(Items.DIRT.getDefaultInstance());
+		final ItemStack dirt = Items.DIRT.getDefaultInstance();
+		return crop.acceptsSoil(dirt) ? dirt : null;
+	}
+
+	/**
+	 * The variety of harvest tools tried per crop (§F.2): empty hand, silk-touch shears, silk-touch
+	 * pickaxe, then a plain axe, sword, shovel and hoe. Silk touch is resolved from the level's
+	 * enchantment registry so silk-touch-sensitive crop loot (grass, mushrooms, ferns…) can drop.
+	 */
+	private static List<ItemStack> harvestTools(final ServerLevel level) {
+		final Holder<Enchantment> silkTouch = level.registryAccess()
+			.lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH);
+		final List<ItemStack> tools = new ArrayList<>();
+		tools.add(ItemStack.EMPTY); // empty hand
+		for (final Item item : HarvestAudit.AUDIT_TOOL_ITEMS) {
+			final ItemStack stack = new ItemStack(item);
+			if (item == Items.SHEARS || item == Items.DIAMOND_PICKAXE) {
+				stack.enchant(silkTouch, 1);
+			}
+			tools.add(stack);
+		}
+		return tools;
+	}
+
+	private static @Nullable Block firstHopperPot() {
+		for (final Block block : ModBlocks.POTS) {
+			if (block instanceof PotType.Provider provider && provider.potType().isHopper()) {
+				return block;
+			}
+		}
+		return null;
 	}
 
 	// ---- place_seeds ----
@@ -267,6 +367,9 @@ public final class DebugCommands {
 			if (level.getBlockEntity(pos) instanceof BotanyPotBlockEntity be) {
 				be.setItem(PotMechanics.SEED, pot[0]);
 				be.setItem(PotMechanics.SOIL, pot[1]);
+				// §F.2 "at full growth": force the pot's growth to mature so both waxed display pots and
+				// any non-waxed test pots (and their saved data) show a fully-grown crop.
+				be.forceFullGrowth();
 			}
 			placed++;
 		}
