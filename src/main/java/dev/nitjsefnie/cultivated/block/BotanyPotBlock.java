@@ -3,6 +3,7 @@ package dev.nitjsefnie.cultivated.block;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.nitjsefnie.cultivated.menu.PotMenuProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -177,7 +178,7 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		return level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot ? pot.getComparatorLevel() : 0;
 	}
 
-	// ---- interaction (stub — Task B3 menu / Task B4 full order) ----
+	// ---- interaction (Task B3 open-menu path; Task B4 layers the full order ahead of it) ----
 
 	@Override
 	protected InteractionResult useWithoutItem(
@@ -189,8 +190,20 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		if (level.isClientSide()) {
 			return InteractionResult.SUCCESS;
 		}
-		// TODO(B3/B4): open the pot menu for Basic & Hopper here, then layer the full
-		// harvest/fertilizer/interaction order (Task B4). Minimal server-side success stub for now.
+		// TODO(B4): the full harvest → fertilizer → pot-interaction order is inserted here, ahead of
+		// this open-menu fallback (the B4 branches return before reaching openMenu when they handle it).
+		return this.openMenu(level, pos, player);
+	}
+
+	/**
+	 * Open the pot menu for Basic and Hopper pots (§B.7). Kept as a dedicated fallback so Task B4's
+	 * interaction order can cleanly fall through to it after its earlier branches. Server-side only
+	 * (callers guard {@code level.isClientSide()}); does nothing if the block entity is missing.
+	 */
+	protected InteractionResult openMenu(final Level level, final BlockPos pos, final Player player) {
+		if (level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot) {
+			player.openMenu(new PotMenuProvider(pot));
+		}
 		return InteractionResult.SUCCESS;
 	}
 
