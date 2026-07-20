@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import java.util.List;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 
@@ -34,6 +35,10 @@ public final class ModCreativeTab {
 						output.accept(block);
 					}
 				}
+					// Tier-upgrade items after the pots (§D).
+					for (final Item upgrade : ModItems.UPGRADES) {
+						output.accept(upgrade);
+					}
 			})
 			.build();
 		BOTANY_POTS = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, Cultivated.id("botany_pots"), tab);
