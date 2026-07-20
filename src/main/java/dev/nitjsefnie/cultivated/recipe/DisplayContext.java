@@ -11,10 +11,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Phase B §B.4 — a client-only, immutable {@link PotContext} backed by a simulated inventory, used
- * by JEI / GUI tooltips to ask "what would this pot do?" without touching a live world. It carries
- * the resolved crop/soil and the required growth ticks for display, but performs no world writes:
- * loot rolls and mcfunctions throw, because a display context has no server to run them on.
+ * Phase B §B.4 — a client-only, immutable {@link PotContext} backed by a simulated inventory: the
+ * display-simulation context that asks "what would this pot do?" without touching a live world. It
+ * carries the resolved crop/soil and the required growth ticks for display, but performs no world
+ * writes: loot rolls and mcfunctions throw, because a display context has no server to run them on.
+ *
+ * <p>Reserved for the Phase C JEI / recipe-viewer and GUI display simulation (§C, §F.4). The Phase C
+ * block-entity renderer reads the live block entity directly rather than through this context; this
+ * type is the world-less context those later display surfaces resolve crop/soil against.
  */
 public record DisplayContext(
 	ItemStack soil,
