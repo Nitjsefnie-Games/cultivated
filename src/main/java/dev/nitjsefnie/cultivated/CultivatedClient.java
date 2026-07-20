@@ -4,6 +4,7 @@ import dev.nitjsefnie.cultivated.block.BotanyPotBlockEntity;
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
 import dev.nitjsefnie.cultivated.client.BasicPotScreen;
 import dev.nitjsefnie.cultivated.client.HopperPotScreen;
+import dev.nitjsefnie.cultivated.client.TierPotTooltip;
 import dev.nitjsefnie.cultivated.client.render.BotanyPotBlockEntityRenderer;
 import dev.nitjsefnie.cultivated.registry.ModBlockEntities;
 import dev.nitjsefnie.cultivated.registry.ModMenus;
@@ -44,6 +45,9 @@ public final class CultivatedClient implements ClientModInitializer {
 			BlockEntityRendererRegistry.register(type, BotanyPotBlockEntityRenderer::new);
 		}
 
-		Cultivated.LOGGER.info("Cultivated client recipe-sync, screen and renderer wiring initialised");
+		// Tiered pot item tooltips (§D): tier speed/yield modifiers behind a "hold Shift" hint.
+		TierPotTooltip.register();
+
+		Cultivated.LOGGER.info("Cultivated client recipe-sync, screen, renderer and tooltip wiring initialised");
 	}
 }
