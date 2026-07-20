@@ -224,7 +224,12 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	/** The pot's resolved crop (override component first, then the sided recipe cache), or null. */
 	public @Nullable CropRecipe resolveCrop() {
 		CropRecipe cached = this.cropCache.get();
-		if (cached != null && this.level != null && !cached.matches(this.matchContext(), this.level)) {
+		// Override-sourced values are authoritative from the seed's item component and are re-derived on
+		// any slot change; skip the per-tick matches() re-confirm (an override recipe's matches()
+		// typically returns false against the seed stack, which would needlessly invalidate + recompute
+		// every tick). Only cache-sourced values are re-confirmed.
+		if (cached != null && this.getItem(PotMechanics.SEED).get(ModComponents.CROP_OVERRIDE) == null
+			&& this.level != null && !cached.matches(this.matchContext(), this.level)) {
 			this.cropCache.invalidate();
 			cached = this.cropCache.get();
 		}
@@ -234,7 +239,9 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	/** The pot's resolved soil (override component first, then the sided recipe cache), or null. */
 	public @Nullable SoilRecipe resolveSoil() {
 		SoilRecipe cached = this.soilCache.get();
-		if (cached != null && this.level != null && !cached.matches(this.matchContext(), this.level)) {
+		// See resolveCrop: override-sourced soil skips the per-tick re-confirm; cache-sourced re-confirms.
+		if (cached != null && this.getItem(PotMechanics.SOIL).get(ModComponents.SOIL_OVERRIDE) == null
+			&& this.level != null && !cached.matches(this.matchContext(), this.level)) {
 			this.soilCache.invalidate();
 			cached = this.soilCache.get();
 		}
@@ -320,13 +327,11 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	}
 
 	/** Emitted light for this pot (§B.1): {@code max(crop light, soil light)}, 0 when empty. */
-	private int computeLightLevel() {
+	private int computeLightLevel(final @Nullable CropRecipe crop, final @Nullable SoilRecipe soil) {
 		int light = 0;
-		final CropRecipe crop = this.resolveCrop();
 		if (crop != null) {
 			light = Math.max(light, crop.lightLevel());
 		}
-		final SoilRecipe soil = this.resolveSoil();
 		if (soil != null) {
 			light = Math.max(light, soil.lightLevel());
 		}
@@ -334,7 +339,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	}
 
 	/** Keep the block's {@code level} state (which drives light emission) in sync with the crop/soil. */
-	private void updateLightLevel(final Level level) {
+	private void updateLightLevel(final Level level, final @Nullable CropRecipe crop, final @Nullable SoilRecipe soil) {
 		if (level.isClientSide()) {
 			return; // block state is server-authoritative and replicated to clients
 		}
@@ -342,7 +347,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (!state.hasProperty(BotanyPotBlock.LEVEL)) {
 			return;
 		}
-		final int desired = this.computeLightLevel();
+		final int desired = this.computeLightLevel(crop, soil);
 		if (state.getValue(BotanyPotBlock.LEVEL) != desired) {
 			level.setBlock(this.worldPosition, state.setValue(BotanyPotBlock.LEVEL, desired), Block.UPDATE_ALL);
 		}
@@ -385,13 +390,18 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		final boolean client = level.isClientSide();
 		final float rate = level.tickRateManager().tickrate();
 
+		// Resolve crop/soil once per tick (both are cache-backed) and reuse everywhere below — the
+		// light update, the waxed short-circuit and the growth body all read these same values.
+		// (Soil's per-tick hook, if any, would run here — soils carry none in the data model.)
+		final CropRecipe crop = this.resolveCrop();
+		final SoilRecipe soil = this.resolveSoil();
+
 		// Keep the emitted-light block state aligned with the resolved crop/soil (§B.1), for every
 		// pot type — waxed pots also light from their decorative full-grown crop.
-		this.updateLightLevel(level);
+		this.updateLightLevel(level, crop, soil);
 
 		if (this.potType.isWaxed()) {
 			// Decorative: force growth to "max" so the renderer shows a full-grown crop; never harvest.
-			final CropRecipe crop = this.resolveCrop();
 			final int required = crop != null ? this.requiredGrowthTicks() : 0;
 			this.growthTime.set(Math.max(required, 1));
 			return;
@@ -400,10 +410,6 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (this.bonemealCooldown > 0) {
 			this.bonemealCooldown--;
 		}
-
-		// Resolve soil (its per-tick hook, if any, would run here — soils carry none in the data model).
-		final SoilRecipe soil = this.resolveSoil();
-		final CropRecipe crop = this.resolveCrop();
 
 		if (crop != null) {
 			if (this.growCooldown.get() > 0.0f) {
@@ -508,9 +514,9 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		final int added = recipe.growth().resolve(required, this.level.getRandom());
 		this.growthTime.set(PotMechanics.clampFertilizedGrowth(this.growthTime.get(), added, required));
 		this.bonemealCooldown = recipe.cooldown();
-		this.setComparatorLevel(this.growthTime.get() >= required
-			? PotMechanics.MATURE_SIGNAL
-			: PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required));
+		// Growth was clamped to at most (required - 20), so it can never reach maturity here (§A.5) —
+		// the comparator always reflects the still-growing scale.
+		this.setComparatorLevel(PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required));
 
 		if (recipe.spawnParticles()) {
 			this.spawnGrowthParticles();

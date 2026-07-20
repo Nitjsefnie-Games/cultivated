@@ -98,7 +98,7 @@ public final class PotRecipeCaches {
 	 * then see empty caches). MC 26.2 no longer ships a full client {@code RecipeManager}, so the
 	 * client caches are fed from {@link SynchronizedRecipes} (the recipes Fabric opts into syncing).
 	 */
-	public static void rebuildClient(final SynchronizedRecipes recipes, final RegistryAccess registries) {
+	public static void rebuildClient(final SynchronizedRecipes recipes) {
 		clientRecipes = recipes;
 		SOILS.invalidate(true);
 		CROPS.invalidate(true);

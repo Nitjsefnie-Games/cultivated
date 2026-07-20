@@ -25,9 +25,9 @@ public class BasicPotMenu extends AbstractPotMenu {
 		super(ModMenus.BASIC_POT, containerId, inventory, container, pos);
 		// Added in container-slot order so a pot slot's menu index equals its container index.
 		this.addSlot(PotSlot.input(container, PotMechanics.SOIL,
-			PotMenuLayout.BASIC_SOIL_X, PotMenuLayout.BASIC_SOIL_Y, stack -> true, PotMenuTextures.SOIL_SLOT));
+			PotMenuLayout.BASIC_SOIL_X, PotMenuLayout.BASIC_SOIL_Y, this::resolvesSoil, PotMenuTextures.SOIL_SLOT));
 		this.addSlot(PotSlot.input(container, PotMechanics.SEED,
-			PotMenuLayout.BASIC_SEED_X, PotMenuLayout.BASIC_SEED_Y, stack -> true, PotMenuTextures.SEED_SLOT));
+			PotMenuLayout.BASIC_SEED_X, PotMenuLayout.BASIC_SEED_Y, this::resolvesCrop, PotMenuTextures.SEED_SLOT));
 		this.addPlayerInventory(inventory);
 	}
 

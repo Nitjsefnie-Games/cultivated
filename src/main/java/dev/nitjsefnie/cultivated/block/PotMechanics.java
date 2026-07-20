@@ -151,6 +151,16 @@ public final class PotMechanics {
 	}
 
 	/**
+	 * Whether a held-item right-click must be preempted by the empty-hand harvest (§B.2 strict
+	 * stop-at-first order: HARVEST is step 1). True only for a non-waxed Basic pot with a mature
+	 * crop, so a held fertilizer / pot-interaction never runs ahead of the harvest; the caller then
+	 * defers ({@code TRY_WITH_EMPTY_HAND}) to the empty-hand harvest path.
+	 */
+	public static boolean harvestPreemptsHeldItem(final boolean waxed, final boolean basic, final boolean harvestable) {
+		return !waxed && basic && harvestable;
+	}
+
+	/**
 	 * Resolve the held-item right-click branch (§B.2): a waxed pot ignores all interaction;
 	 * otherwise fertilizer (step 2) is tried before pot-interaction (step 3); if neither the held
 	 * item matched a fertilizer nor a pot-interaction recipe, defer to the empty-hand path.

@@ -28,9 +28,9 @@ public class HopperPotMenu extends AbstractPotMenu {
 		super(ModMenus.HOPPER_POT, containerId, inventory, container, pos);
 		// Added in container-slot order so a pot slot's menu index equals its container index.
 		this.addSlot(PotSlot.input(container, PotMechanics.SOIL,
-			PotMenuLayout.HOPPER_SOIL_X, PotMenuLayout.HOPPER_SOIL_Y, stack -> true, PotMenuTextures.SOIL_SLOT));
+			PotMenuLayout.HOPPER_SOIL_X, PotMenuLayout.HOPPER_SOIL_Y, this::resolvesSoil, PotMenuTextures.SOIL_SLOT));
 		this.addSlot(PotSlot.input(container, PotMechanics.SEED,
-			PotMenuLayout.HOPPER_SEED_X, PotMenuLayout.HOPPER_SEED_Y, stack -> true, PotMenuTextures.SEED_SLOT));
+			PotMenuLayout.HOPPER_SEED_X, PotMenuLayout.HOPPER_SEED_Y, this::resolvesCrop, PotMenuTextures.SEED_SLOT));
 		this.addSlot(PotSlot.input(container, PotMechanics.TOOL,
 			PotMenuLayout.HOPPER_TOOL_X, PotMenuLayout.HOPPER_TOOL_Y, stack -> stack.is(ModTags.HARVEST_ITEMS), PotMenuTextures.HOE_SLOT));
 		for (int row = 0; row < PotMenuLayout.OUTPUT_ROWS; row++) {

@@ -200,8 +200,16 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 			// client-side swing/fallback prediction.
 			return InteractionResult.TRY_WITH_EMPTY_HAND;
 		}
-		if (level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot && pot.tryHeldInteraction(player, hand)) {
-			return InteractionResult.SUCCESS;
+		if (level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot) {
+			// §B.2 strict stop-at-first order: HARVEST (step 1) preempts any held fertilizer /
+			// pot-interaction on a mature Basic pot — defer to the empty-hand harvest path instead
+			// of running the held item.
+			if (PotMechanics.harvestPreemptsHeldItem(false, this.potType == PotType.BASIC, pot.isHarvestable())) {
+				return InteractionResult.TRY_WITH_EMPTY_HAND;
+			}
+			if (pot.tryHeldInteraction(player, hand)) {
+				return InteractionResult.SUCCESS;
+			}
 		}
 		return InteractionResult.TRY_WITH_EMPTY_HAND;
 	}

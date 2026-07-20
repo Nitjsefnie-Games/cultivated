@@ -7,7 +7,6 @@ import dev.nitjsefnie.cultivated.registry.ModMenus;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.recipe.v1.sync.ClientRecipeSynchronizedEvent;
 import net.minecraft.client.gui.screens.MenuScreens;
-import net.minecraft.core.RegistryAccess;
 
 /**
  * Phase B (B1 carry-over S2) — client-side wiring. Rebuilds the client recipe lookup caches whenever
@@ -25,12 +24,8 @@ import net.minecraft.core.RegistryAccess;
 public final class CultivatedClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
-		ClientRecipeSynchronizedEvent.EVENT.register((minecraft, syncedRecipes) -> {
-			final RegistryAccess registries = minecraft.getConnection() != null
-				? minecraft.getConnection().registryAccess()
-				: RegistryAccess.EMPTY;
-			PotRecipeCaches.rebuildClient(syncedRecipes, registries);
-		});
+		ClientRecipeSynchronizedEvent.EVENT.register((minecraft, syncedRecipes) ->
+			PotRecipeCaches.rebuildClient(syncedRecipes));
 
 		// Bind the pot menu types to their screens (§B.7). The menu types are Fabric ExtendedMenuTypes,
 		// but screen registration still goes through vanilla MenuScreens#register.

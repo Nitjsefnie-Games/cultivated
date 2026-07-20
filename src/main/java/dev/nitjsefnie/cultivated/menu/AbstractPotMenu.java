@@ -125,7 +125,7 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 	}
 
 	/** True if {@code stack} resolves to a soil (item override component first, then the sided cache). */
-	private boolean resolvesSoil(final ItemStack stack) {
+	protected boolean resolvesSoil(final ItemStack stack) {
 		if (stack.isEmpty()) {
 			return false;
 		}
@@ -136,7 +136,7 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 	}
 
 	/** True if {@code stack} resolves to a crop (item override component first, then the sided cache). */
-	private boolean resolvesCrop(final ItemStack stack) {
+	protected boolean resolvesCrop(final ItemStack stack) {
 		if (stack.isEmpty()) {
 			return false;
 		}

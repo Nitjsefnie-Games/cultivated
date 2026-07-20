@@ -83,7 +83,15 @@ public sealed interface DropProvider {
 		BuiltInRegistries.BLOCK::getKey
 	);
 
-	/** A tolerant {@code block_state} reference: any un-decodable state (e.g. absent block) → air. */
+	/**
+	 * A tolerant {@code block_state} reference that falls back to inert air ONLY when the referenced
+	 * block id is absent from the registry (so a guarded cross-mod drop still parses and is dropped by
+	 * its load condition), while a genuinely malformed block-state (bad property / bad format) still
+	 * surfaces a decode error. {@link BlockState#CODEC} dispatches on the {@code "Name"} field via
+	 * {@code BLOCK.byNameCodec()}; we re-read that field as an {@link Identifier} and treat it as
+	 * "absent block" only when it is a well-formed id missing from the block registry — every other
+	 * failure (missing/malformed {@code Name}, bad {@code Properties}) propagates the original error.
+	 */
 	Codec<BlockState> LENIENT_BLOCK_STATE = new Codec<>() {
 		@Override
 		public <T> DataResult<Pair<BlockState, T>> decode(final DynamicOps<T> ops, final T input) {
@@ -91,7 +99,11 @@ public sealed interface DropProvider {
 			if (result.result().isPresent()) {
 				return result;
 			}
-			return DataResult.success(Pair.of(Blocks.AIR.defaultBlockState(), ops.empty()));
+			final Optional<Identifier> name = Identifier.CODEC.fieldOf("Name").codec().parse(ops, input).result();
+			if (name.isPresent() && BuiltInRegistries.BLOCK.getOptional(name.get()).isEmpty()) {
+				return DataResult.success(Pair.of(Blocks.AIR.defaultBlockState(), ops.empty()));
+			}
+			return result;
 		}
 
 		@Override
