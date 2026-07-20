@@ -9,8 +9,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -178,8 +180,36 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		return level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot ? pot.getComparatorLevel() : 0;
 	}
 
-	// ---- interaction (Task B3 open-menu path; Task B4 layers the full order ahead of it) ----
+	// ---- interaction (§B.2 order: held item → useItemOn; empty hand → useWithoutItem) ----
 
+	/**
+	 * Held-item right-click (§B.2 steps 2–3, runs before {@link #useWithoutItem}): try the pot's
+	 * fertilizer then pot-interaction application server-side; when neither applies, defer to the
+	 * empty-hand path (harvest / open menu) via {@code TRY_WITH_EMPTY_HAND}. Waxed pots ignore all.
+	 */
+	@Override
+	protected InteractionResult useItemOn(
+		final ItemStack stack, final BlockState state, final Level level, final BlockPos pos,
+		final Player player, final InteractionHand hand, final BlockHitResult hitResult
+	) {
+		if (this.potType.isWaxed()) {
+			return InteractionResult.PASS; // decorative: ignores all interaction (§B.2)
+		}
+		if (level.isClientSide()) {
+			// The server resolves the interaction authoritatively; the empty-hand hook drives the
+			// client-side swing/fallback prediction.
+			return InteractionResult.TRY_WITH_EMPTY_HAND;
+		}
+		if (level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot && pot.tryHeldInteraction(player, hand)) {
+			return InteractionResult.SUCCESS;
+		}
+		return InteractionResult.TRY_WITH_EMPTY_HAND;
+	}
+
+	/**
+	 * Empty-hand right-click (§B.2 step 1 / step 4): a Basic pot with a mature crop harvests once;
+	 * every other Basic/Hopper pot opens the container GUI. Waxed pots ignore all interaction.
+	 */
 	@Override
 	protected InteractionResult useWithoutItem(
 		final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult
@@ -190,9 +220,17 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 		if (level.isClientSide()) {
 			return InteractionResult.SUCCESS;
 		}
-		// TODO(B4): the full harvest → fertilizer → pot-interaction order is inserted here, ahead of
-		// this open-menu fallback (the B4 branches return before reaching openMenu when they handle it).
-		return this.openMenu(level, pos, player);
+		if (!(level.getBlockEntity(pos) instanceof BotanyPotBlockEntity pot)) {
+			return InteractionResult.SUCCESS;
+		}
+		return switch (PotMechanics.emptyHandBranch(false, this.potType == PotType.BASIC, pot.isHarvestable())) {
+			case HARVEST -> {
+				pot.harvestManually(player);
+				yield InteractionResult.SUCCESS;
+			}
+			case OPEN_MENU -> this.openMenu(level, pos, player);
+			case IGNORE -> InteractionResult.PASS;
+		};
 	}
 
 	/**

@@ -9,6 +9,7 @@ import dev.nitjsefnie.cultivated.recipe.CropRecipe;
 import dev.nitjsefnie.cultivated.recipe.FertilizerRecipe;
 import dev.nitjsefnie.cultivated.recipe.LiveContext;
 import dev.nitjsefnie.cultivated.recipe.PotContext;
+import dev.nitjsefnie.cultivated.recipe.PotInteractionRecipe;
 import dev.nitjsefnie.cultivated.recipe.SimplePotContext;
 import dev.nitjsefnie.cultivated.recipe.SoilRecipe;
 import dev.nitjsefnie.cultivated.registry.ModAttributes;
@@ -22,8 +23,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
@@ -509,6 +512,9 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			? PotMechanics.MATURE_SIGNAL
 			: PotMechanics.comparatorWhileGrowing(this.growthTime.get(), required));
 
+		if (recipe.spawnParticles()) {
+			this.spawnGrowthParticles();
+		}
 		recipe.soundEffect().ifPresent(sound ->
 			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
 		if (recipe.notifySculk()) {
@@ -520,6 +526,101 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		}
 		this.setChanged();
 		return true;
+	}
+
+	/**
+	 * Right-click held-item interaction (§B.2 steps 2–3): resolve the held item against the
+	 * fertilizer cache first (step 2), then the pot-interaction cache (step 3), applying the first
+	 * that both {@code matches} the live context and successfully takes effect. Server-side only
+	 * (returns false on the client / a world-less BE, or when nothing applied).
+	 */
+	public boolean tryHeldInteraction(final Player player, final InteractionHand hand) {
+		if (this.level == null || this.level.isClientSide()) {
+			return false;
+		}
+		final ItemStack held = player.getItemInHand(hand);
+		if (held.isEmpty()) {
+			return false;
+		}
+		final PotContext context = this.heldContext(held);
+		final FertilizerRecipe fertilizer = PotRecipeCaches.fertilizers(false).lookup(held, context);
+		final boolean fertilizerMatches = fertilizer != null && fertilizer.matches(context, this.level);
+		final PotInteractionRecipe interaction = PotRecipeCaches.interactions(false).lookup(held, context);
+		final boolean interactionMatches = interaction != null && interaction.matches(context, this.level);
+
+		// §B.2: fertilizer (step 2) is attempted before pot-interaction (step 3); a matched-but-no-op
+		// fertilizer (cooldown / clamp) falls through so a pot-interaction can still apply.
+		return switch (PotMechanics.heldItemBranch(this.potType.isWaxed(), fertilizerMatches, interactionMatches)) {
+			case FERTILIZE -> this.applyFertilizer(fertilizer, player, hand)
+				|| (interactionMatches && this.applyInteraction(interaction, player, hand));
+			case INTERACT -> this.applyInteraction(interaction, player, hand);
+			case DEFER, IGNORE -> false;
+		};
+	}
+
+	/** Apply a matched pot-interaction (§B.6) in world: transform soil/seed, roll drops, effects, consume held. */
+	public boolean applyInteraction(final PotInteractionRecipe recipe, final @Nullable Player player, final @Nullable InteractionHand hand) {
+		if (this.level == null || this.level.isClientSide()) {
+			return false;
+		}
+		recipe.newSoil().ifPresent(newSoil -> this.replaceInput(PotMechanics.SOIL, newSoil));
+		recipe.newSeed().ifPresent(newSeed -> this.replaceInput(PotMechanics.SEED, newSeed));
+
+		recipe.extraDrops().ifPresent(tableId -> {
+			final LiveContext context = new LiveContext(this, player, hand);
+			for (final ItemStack drop : context.rollLootTable(tableId, this.level.getRandom())) {
+				Block.popResource(this.level, this.worldPosition.above(), drop);
+			}
+		});
+
+		recipe.soundEffect().ifPresent(sound ->
+			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
+		if (recipe.notifySculk()) {
+			this.level.gameEvent(player, GameEvent.BLOCK_CHANGE, this.worldPosition);
+		}
+
+		if (player != null && hand != null && !player.getAbilities().instabuild) {
+			switch (PotMechanics.heldConsumption(recipe.damageHeld(), recipe.consumeHeld())) {
+				case DAMAGE -> player.getItemInHand(hand).hurtAndBreak(1, player, hand);
+				case CONSUME -> player.getItemInHand(hand).shrink(1);
+				case NONE -> { }
+			}
+		}
+		this.setChanged();
+		return true;
+	}
+
+	/** Replace an input slot (soil/seed), dropping any old stack above the pot (§B.6). */
+	private void replaceInput(final int slot, final ItemStack replacement) {
+		if (this.level == null) {
+			return;
+		}
+		final ItemStack old = this.getItem(slot);
+		if (!old.isEmpty()) {
+			Block.popResource(this.level, this.worldPosition.above(), old);
+		}
+		this.setItem(slot, replacement.copy());
+	}
+
+	/** A live match context carrying the interacting player's held item (for soil/seed constraint tests). */
+	private PotContext heldContext(final ItemStack held) {
+		final boolean serverSide = this.level != null && !this.level.isClientSide();
+		return new SimplePotContext(
+			this.getItem(PotMechanics.SOIL), this.getItem(PotMechanics.SEED), this.getItem(PotMechanics.TOOL),
+			held, this.level, serverSide, this.requiredGrowthTicks()
+		);
+	}
+
+	/** Spawn the bee-growth (happy-villager) particles above the pot on a successful fertilize (§A.5). */
+	private void spawnGrowthParticles() {
+		if (!(this.level instanceof ServerLevel server)) {
+			return;
+		}
+		server.sendParticles(
+			ParticleTypes.HAPPY_VILLAGER,
+			this.worldPosition.getX() + 0.5, this.worldPosition.getY() + 0.6, this.worldPosition.getZ() + 0.5,
+			15, 0.35, 0.35, 0.35, 0.0
+		);
 	}
 
 	/** Merge a drop into the storage slots (3..14); anything that does not fit pops above the pot. */

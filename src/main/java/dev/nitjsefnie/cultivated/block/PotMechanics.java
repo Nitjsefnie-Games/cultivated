@@ -100,4 +100,85 @@ public final class PotMechanics {
 	public static boolean canAutomationPlace() {
 		return false;
 	}
+
+	// ---- right-click interaction order (§B.2) — pure decision logic ----
+
+	/** The empty-hand ({@code useWithoutItem}) branch resolved for a right-click (§B.2). */
+	public enum EmptyHandBranch {
+		/** Basic pot with a mature crop: run the manual harvest (§B.2 step 1). */
+		HARVEST,
+		/** Basic/Hopper pot: open the container GUI (§B.2 step 4). */
+		OPEN_MENU,
+		/** Waxed (decorative) pot: ignore the interaction entirely. */
+		IGNORE
+	}
+
+	/** The held-item ({@code useItemOn}) branch resolved for a right-click (§B.2 steps 2–3). */
+	public enum HeldItemBranch {
+		/** Held item matches a fertilizer recipe (§B.2 step 2) — attempted first. */
+		FERTILIZE,
+		/** Held item matches a pot-interaction recipe (§B.2 step 3). */
+		INTERACT,
+		/** No held-item recipe matched — defer to the empty-hand path (harvest / open menu). */
+		DEFER,
+		/** Waxed (decorative) pot: ignore the interaction entirely. */
+		IGNORE
+	}
+
+	/** How a matched pot-interaction consumes the held item (§B.6): damage wins over consume. */
+	public enum HeldConsumption {
+		/** Damage the held item by 1 ({@code damage_held}, default). */
+		DAMAGE,
+		/** Consume 1 held item ({@code consume_held}, only honoured when not damaging). */
+		CONSUME,
+		/** Leave the held item untouched. */
+		NONE
+	}
+
+	/**
+	 * Resolve the empty-hand right-click branch (§B.2): a waxed pot ignores all interaction; a
+	 * Basic pot with a mature crop harvests (step 1); every other Basic/Hopper pot opens the menu
+	 * (step 4).
+	 */
+	public static EmptyHandBranch emptyHandBranch(final boolean waxed, final boolean basic, final boolean harvestable) {
+		if (waxed) {
+			return EmptyHandBranch.IGNORE;
+		}
+		if (basic && harvestable) {
+			return EmptyHandBranch.HARVEST;
+		}
+		return EmptyHandBranch.OPEN_MENU;
+	}
+
+	/**
+	 * Resolve the held-item right-click branch (§B.2): a waxed pot ignores all interaction;
+	 * otherwise fertilizer (step 2) is tried before pot-interaction (step 3); if neither the held
+	 * item matched a fertilizer nor a pot-interaction recipe, defer to the empty-hand path.
+	 */
+	public static HeldItemBranch heldItemBranch(final boolean waxed, final boolean fertilizerMatches, final boolean interactionMatches) {
+		if (waxed) {
+			return HeldItemBranch.IGNORE;
+		}
+		if (fertilizerMatches) {
+			return HeldItemBranch.FERTILIZE;
+		}
+		if (interactionMatches) {
+			return HeldItemBranch.INTERACT;
+		}
+		return HeldItemBranch.DEFER;
+	}
+
+	/**
+	 * How a matched pot-interaction should consume the held item (§B.6): {@code damage_held} takes
+	 * priority, then {@code consume_held} (honoured only when not damaging), else nothing.
+	 */
+	public static HeldConsumption heldConsumption(final boolean damageHeld, final boolean consumeHeld) {
+		if (damageHeld) {
+			return HeldConsumption.DAMAGE;
+		}
+		if (consumeHeld) {
+			return HeldConsumption.CONSUME;
+		}
+		return HeldConsumption.NONE;
+	}
 }
