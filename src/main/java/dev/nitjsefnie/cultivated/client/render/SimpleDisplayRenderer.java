@@ -4,16 +4,14 @@ import dev.nitjsefnie.cultivated.data.display.Display;
 import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.renderer.block.BlockModelRenderState;
 
 /**
- * Phase C §C.4 — renders a {@link Display.Simple}: bakes the block state's model (cutout/translucent
- * sheet) with the option's tint applied, at the current growth scale. This is also the delegate the
- * {@link PhasedDisplayRenderer} dispatches block-state phases to (§C.3).
- *
- * <p>The option's face set and fluid layer (§C.4/§C.6) are carried in the {@link ResolvedDisplay}'s
- * {@code options} but are not applied through the high-level block-model submit path in Task C1 (see
- * the C1 report / deferred to Task C2's lower-level geometry path).
+ * Phase C §C.4 — renders a {@link Display.Simple}: draws the block state's model honoring the option's
+ * {@code faces} set (a full model takes the fast high-level submit path; a restricted face set takes
+ * the low-level VertexConsumer path), its {@code render_fluid} layer (§C.4, for water/lava-style
+ * soils) and tint (explicit {@code color}, else the quad's world tint). Delegated to by
+ * {@link PhasedDisplayRenderer} for {@code aging}/{@code transitional} block-state phases (§C.3);
+ * the geometry decision itself lives in {@link DisplayResolveContext#resolveSimple}.
  */
 @Environment(EnvType.CLIENT)
 public final class SimpleDisplayRenderer implements DisplayRenderer<Display> {
@@ -22,10 +20,6 @@ public final class SimpleDisplayRenderer implements DisplayRenderer<Display> {
 		if (!(display instanceof Display.Simple simple)) {
 			return;
 		}
-		final BlockModelRenderState model = context.bakeBlockModel(simple.blockState(), simple.options());
-		if (model.isEmpty()) {
-			return;
-		}
-		out.add(new ResolvedDisplay(model, simple.options(), context.growthScale()));
+		context.resolveSimple(simple.blockState(), simple.options(), out);
 	}
 }

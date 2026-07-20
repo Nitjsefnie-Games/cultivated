@@ -19,9 +19,10 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockModelResolver;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.sprite.SpriteGetter;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -47,11 +48,25 @@ import org.jspecify.annotations.Nullable;
 @Environment(EnvType.CLIENT)
 public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyPotBlockEntity, PotRenderState> {
 	private final BlockModelResolver blockModelResolver;
+	private final SpriteGetter spriteGetter;
+	private final EntityRenderDispatcher entityRenderDispatcher;
 	private final DisplayRendererRegistry displayRenderers;
+	private final DisplayEntityCache entityCache = new DisplayEntityCache();
 
 	public BotanyPotBlockEntityRenderer(final BlockEntityRendererProvider.Context context) {
 		this.blockModelResolver = context.blockModelResolver();
+		this.spriteGetter = context.sprites();
+		this.entityRenderDispatcher = context.entityRenderer();
 		this.displayRenderers = DisplayRendererRegistry.createDefault();
+	}
+
+	private DisplayResolveContext resolveContext(
+		final BotanyPotBlockEntity pot, final float partialTicks, final float progress, final float growthScale
+	) {
+		return new DisplayResolveContext(
+			this.blockModelResolver, this.displayRenderers, this.spriteGetter, this.entityRenderDispatcher,
+			this.entityCache, pot.getLevel(), partialTicks, progress, growthScale
+		);
 	}
 
 	@Override
@@ -76,15 +91,17 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		final boolean animate = CultivatedConfig.useGrowthAnimation;
 
 		if (CultivatedConfig.renderCrop) {
-			this.extractCrop(pot, state, progress, animate);
+			this.extractCrop(pot, state, partialTicks, progress, animate);
 		}
 		if (CultivatedConfig.renderSoil) {
-			this.extractSoil(pot, state, progress, cameraPosition);
+			this.extractSoil(pot, state, partialTicks, progress, cameraPosition);
 		}
 	}
 
 	/** Crop displays render only while growth is sustained (§C.1), scaled by growth progress. */
-	private void extractCrop(final BotanyPotBlockEntity pot, final PotRenderState state, final float progress, final boolean animate) {
+	private void extractCrop(
+		final BotanyPotBlockEntity pot, final PotRenderState state, final float partialTicks, final float progress, final boolean animate
+	) {
 		final CropRecipe crop = pot.resolveCrop();
 		if (crop == null) {
 			return;
@@ -93,14 +110,16 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 			return; // growth not sustained → no crop drawn (§C.1)
 		}
 		final float growthScale = PotRenderMath.cropScale(progress, animate);
-		final DisplayResolveContext context = new DisplayResolveContext(this.blockModelResolver, this.displayRenderers, progress, growthScale);
+		final DisplayResolveContext context = this.resolveContext(pot, partialTicks, progress, growthScale);
 		for (final Display display : crop.displays()) {
 			context.resolve(display, state.cropDraws);
 		}
 	}
 
 	/** Soil renders only when a soil item is present and the camera is at/above the pot's Y (§C.1). */
-	private void extractSoil(final BotanyPotBlockEntity pot, final PotRenderState state, final float progress, final Vec3 cameraPosition) {
+	private void extractSoil(
+		final BotanyPotBlockEntity pot, final PotRenderState state, final float partialTicks, final float progress, final Vec3 cameraPosition
+	) {
 		final ItemStack soilStack = pot.getItem(PotContext.SOIL);
 		if (soilStack.isEmpty()) {
 			return;
@@ -112,7 +131,7 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		if (soilDisplay == null) {
 			return;
 		}
-		final DisplayResolveContext context = new DisplayResolveContext(this.blockModelResolver, this.displayRenderers, progress, 1.0f);
+		final DisplayResolveContext context = this.resolveContext(pot, partialTicks, progress, 1.0f);
 		context.resolve(soilDisplay, state.soilDraws);
 	}
 
@@ -151,26 +170,45 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		poseStack.mulPose(Axis.YP.rotationDegrees(-state.facingYRot));
 		poseStack.translate(-0.5f, 0.0f, -0.5f);
 
-		final float soilTop = submitStack(state.soilDraws, poseStack, collector, state.lightCoords, 0.0f);
-		submitStack(state.cropDraws, poseStack, collector, state.lightCoords, soilTop);
+		// Soil is drawn vertically compressed to ~0.6375 of a block so it sits low in the planter (§C.1).
+		final float soilTop = submitStack(
+			state.soilDraws, poseStack, collector, camera, state.lightCoords, 0.0f, PotRenderMath.SOIL_HEIGHT_SCALE
+		);
+		submitStack(state.cropDraws, poseStack, collector, camera, state.lightCoords, soilTop, 1.0f);
 		poseStack.popPose();
 	}
 
-	/** Render a bottom-up stack of displays, each lifted above the previous by its measured height (§C.6). */
+	/**
+	 * Render a bottom-up stack of displays, each lifted above the previous by its measured height (§C.6).
+	 * {@code yScale} vertically compresses every draw in the stack (1.0 for crops, the soil compression
+	 * for soil, §C.1) and is factored into both the draw's scale and the running stack height.
+	 */
 	private static float submitStack(
-		final List<ResolvedDisplay> draws, final PoseStack poseStack, final SubmitNodeCollector collector, final int lightCoords, final float startBase
+		final List<ResolvedDisplay> draws,
+		final PoseStack poseStack,
+		final SubmitNodeCollector collector,
+		final CameraRenderState camera,
+		final int lightCoords,
+		final float startBase,
+		final float yScale
 	) {
 		float base = startBase;
 		for (final ResolvedDisplay draw : draws) {
-			submitDisplay(draw, poseStack, collector, lightCoords, base);
-			base = PotRenderMath.nextStackBase(base, draw.options(), draw.growthScale());
+			submitDisplay(draw, poseStack, collector, camera, lightCoords, base, yScale);
+			base += PotRenderMath.displayHeight(draw.options(), draw.growthScale()) * yScale;
 		}
 		return base;
 	}
 
-	/** Apply scale (× growth), offset, then each re-centred axis rotation (§C.6), and submit the model. */
+	/** Apply scale (× growth × yScale), offset, then each re-centred axis rotation (§C.6), and submit. */
 	private static void submitDisplay(
-		final ResolvedDisplay draw, final PoseStack poseStack, final SubmitNodeCollector collector, final int lightCoords, final float base
+		final ResolvedDisplay draw,
+		final PoseStack poseStack,
+		final SubmitNodeCollector collector,
+		final CameraRenderState camera,
+		final int lightCoords,
+		final float base,
+		final float yScale
 	) {
 		final RenderOptions options = draw.options();
 		final Vec3f scale = options.scale();
@@ -179,7 +217,7 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 
 		poseStack.pushPose();
 		poseStack.translate(0.5f, base, 0.5f);
-		poseStack.scale(scale.x() * growth, scale.y() * growth, scale.z() * growth);
+		poseStack.scale(scale.x() * growth, scale.y() * growth * yScale, scale.z() * growth);
 		poseStack.translate(offset.x(), offset.y(), offset.z());
 		for (final AxisRotation rotation : options.rotation()) {
 			poseStack.rotateAround(
@@ -189,7 +227,7 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		}
 		// Centre the 0..1 block-model cube horizontally on the pivot the transforms were built around.
 		poseStack.translate(-0.5f, 0.0f, -0.5f);
-		draw.model().submit(poseStack, collector, lightCoords, OverlayTexture.NO_OVERLAY, 0);
+		draw.geometry().submit(poseStack, collector, lightCoords, camera);
 		poseStack.popPose();
 	}
 

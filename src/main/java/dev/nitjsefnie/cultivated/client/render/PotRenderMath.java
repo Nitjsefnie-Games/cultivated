@@ -2,6 +2,9 @@ package dev.nitjsefnie.cultivated.client.render;
 
 import dev.nitjsefnie.cultivated.data.display.RenderOptions;
 import dev.nitjsefnie.cultivated.data.display.TintColor;
+import java.util.Set;
+import net.minecraft.core.Direction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Phase C §C.1/§C.3/§C.6 — the pure, side-effect-free maths behind the pot block-entity renderer,
@@ -24,14 +27,6 @@ public final class PotRenderMath {
 	public static final float ROTATION_PIVOT = 0.5f;
 
 	private PotRenderMath() {
-	}
-
-	/** Growth progress in {@code [0,1]} = {@code clamp(growthTime / requiredTicks)} (§C.1); 0 if no crop. */
-	public static float growthProgress(final float growthTime, final int requiredTicks) {
-		if (requiredTicks <= 0) {
-			return 0.0f;
-		}
-		return clamp01(growthTime / requiredTicks);
 	}
 
 	/**
@@ -69,14 +64,22 @@ public final class PotRenderMath {
 		return options.scale().y() * growthScale;
 	}
 
-	/** The running stack base after placing a display of the given options/scale on top (§C.6). */
-	public static float nextStackBase(final float base, final RenderOptions options, final float growthScale) {
-		return base + displayHeight(options, growthScale);
+	/**
+	 * Spin angle in degrees for an {@code entity} display (§C.5): {@code spin_speed * 360 * progress},
+	 * so a full unit of {@code spin_speed} sweeps one revolution across the crop's growth. Progress is
+	 * clamped to {@code [0,1]} (it is drawn only while growth is sustained).
+	 */
+	public static float spinDegrees(final float spinSpeed, final float progress) {
+		return spinSpeed * 360.0f * clamp01(progress);
 	}
 
-	/** An axis rotation's angle in radians (§C.6), for building a JOML quaternion in the renderer. */
-	public static float rotationRadians(final RenderOptions.AxisRotation rotation) {
-		return (float)Math.toRadians(rotation.degrees());
+	/**
+	 * Whether a model face should be drawn under the option's {@code faces} set (§C.4/§C.6). A quad with
+	 * no cull direction ({@code null} — general/interior geometry such as a crop's cross model) is always
+	 * drawn; a direction-culled quad is drawn only when its direction is in the set.
+	 */
+	public static boolean shouldDrawFace(final Set<Direction> faces, final @Nullable Direction direction) {
+		return direction == null || faces.contains(direction);
 	}
 
 	/**

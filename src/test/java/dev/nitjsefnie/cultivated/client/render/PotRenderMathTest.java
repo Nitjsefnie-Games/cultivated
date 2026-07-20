@@ -1,13 +1,16 @@
 package dev.nitjsefnie.cultivated.client.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.nitjsefnie.cultivated.data.display.RenderOptions;
-import dev.nitjsefnie.cultivated.data.display.RenderOptions.AxisRotation;
 import dev.nitjsefnie.cultivated.data.display.RenderOptions.Vec3f;
 import dev.nitjsefnie.cultivated.data.display.TintColor;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,27 +22,6 @@ import org.junit.jupiter.api.Test;
 class PotRenderMathTest {
 
 	private static final float EPS = 1.0e-6f;
-
-	// ---- growth progress = clamp(growthTime / requiredTicks, 0..1) ----
-
-	@Test
-	void growthProgressIsRatioClampedToUnitInterval() {
-		assertEquals(0.0f, PotRenderMath.growthProgress(0.0f, 100), EPS);
-		assertEquals(0.5f, PotRenderMath.growthProgress(50.0f, 100), EPS);
-		assertEquals(1.0f, PotRenderMath.growthProgress(100.0f, 100), EPS);
-	}
-
-	@Test
-	void growthProgressClampsOvershootAndUndershoot() {
-		assertEquals(1.0f, PotRenderMath.growthProgress(250.0f, 100), EPS);
-		assertEquals(0.0f, PotRenderMath.growthProgress(-10.0f, 100), EPS);
-	}
-
-	@Test
-	void growthProgressIsZeroWhenNoRequiredTicks() {
-		assertEquals(0.0f, PotRenderMath.growthProgress(50.0f, 0), EPS);
-		assertEquals(0.0f, PotRenderMath.growthProgress(50.0f, -5), EPS);
-	}
 
 	// ---- crop scale = 0.40 + 0.60 * progress (or full when animation off) ----
 
@@ -91,25 +73,45 @@ class PotRenderMathTest {
 		assertEquals(0.3125f, PotRenderMath.displayHeight(options, 0.5f), EPS);
 	}
 
+	// ---- entity spin angle = spin_speed * 360 * progress (progress clamped) ----
+
 	@Test
-	void nextStackBaseAccumulatesHeights() {
-		final RenderOptions a = optionsWithScale(0.5f);
-		final RenderOptions b = optionsWithScale(0.25f);
-		float base = 0.0f;
-		base = PotRenderMath.nextStackBase(base, a, 1.0f);
-		assertEquals(0.5f, base, EPS);
-		base = PotRenderMath.nextStackBase(base, b, 1.0f);
-		assertEquals(0.75f, base, EPS);
+	void spinDegreesSweepsRevolutionsAcrossProgress() {
+		assertEquals(0.0f, PotRenderMath.spinDegrees(1.0f, 0.0f), EPS);
+		assertEquals(180.0f, PotRenderMath.spinDegrees(1.0f, 0.5f), EPS);
+		assertEquals(360.0f, PotRenderMath.spinDegrees(1.0f, 1.0f), EPS);
+		assertEquals(720.0f, PotRenderMath.spinDegrees(2.0f, 1.0f), EPS);
 	}
 
-	// ---- axis-rotation angle conversion ----
+	@Test
+	void spinDegreesIsZeroWithoutSpinSpeedAndClampsProgress() {
+		assertEquals(0.0f, PotRenderMath.spinDegrees(0.0f, 0.7f), EPS);
+		assertEquals(360.0f, PotRenderMath.spinDegrees(1.0f, 2.0f), EPS);
+		assertEquals(0.0f, PotRenderMath.spinDegrees(1.0f, -1.0f), EPS);
+	}
+
+	// ---- face-filter decision ----
 
 	@Test
-	void rotationRadiansConvertsAxisRotationDegrees() {
-		assertEquals(0.0f, PotRenderMath.rotationRadians(AxisRotation.Y_0), EPS);
-		assertEquals((float)(Math.PI / 2.0), PotRenderMath.rotationRadians(AxisRotation.X_90), EPS);
-		assertEquals((float)Math.PI, PotRenderMath.rotationRadians(AxisRotation.Z_180), EPS);
-		assertEquals((float)(3.0 * Math.PI / 2.0), PotRenderMath.rotationRadians(AxisRotation.Y_270), EPS);
+	void shouldDrawFaceAlwaysDrawsNullDirectionGeometry() {
+		assertTrue(PotRenderMath.shouldDrawFace(Set.of(Direction.UP), null));
+		assertTrue(PotRenderMath.shouldDrawFace(Set.of(), null));
+	}
+
+	@Test
+	void shouldDrawFaceHonorsTheFaceSet() {
+		final Set<Direction> onlyUp = Set.of(Direction.UP);
+		assertTrue(PotRenderMath.shouldDrawFace(onlyUp, Direction.UP));
+		assertFalse(PotRenderMath.shouldDrawFace(onlyUp, Direction.DOWN));
+		assertFalse(PotRenderMath.shouldDrawFace(onlyUp, Direction.NORTH));
+	}
+
+	@Test
+	void shouldDrawFaceDrawsAllListedFaces() {
+		final Set<Direction> all = Set.of(Direction.values());
+		for (final Direction direction : Direction.values()) {
+			assertTrue(PotRenderMath.shouldDrawFace(all, direction));
+		}
 	}
 
 	// ---- tint → ARGB ----

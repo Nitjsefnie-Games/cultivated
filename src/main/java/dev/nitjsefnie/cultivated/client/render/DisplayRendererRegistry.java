@@ -37,13 +37,20 @@ public final class DisplayRendererRegistry {
 		renderer.resolve(display, context, out);
 	}
 
-	/** The default registry for Task C1: {@code simple} + phased {@code aging}/{@code transitional}. */
+	/**
+	 * The default registry: {@code simple} (§C.4), phased {@code aging}/{@code transitional} (§C.3),
+	 * and the {@code entity} + {@code textured_cube} displays (§C.5). All renderers are stateless — the
+	 * per-frame resolvers (model/sprite/entity) flow through {@link DisplayResolveContext} — so new
+	 * display types are added by an extra {@link #register} call here without further plumbing.
+	 */
 	public static DisplayRendererRegistry createDefault() {
 		final DisplayRendererRegistry registry = new DisplayRendererRegistry();
 		registry.register(Display.SIMPLE_TYPE, new SimpleDisplayRenderer());
 		final PhasedDisplayRenderer phased = new PhasedDisplayRenderer();
 		registry.register(Display.AGING_TYPE, phased);
 		registry.register(Display.TRANSITIONAL_TYPE, phased);
+		registry.register(Display.ENTITY_TYPE, new EntityDisplayRenderer());
+		registry.register(Display.TEXTURED_CUBE_TYPE, new TexturedCubeDisplayRenderer());
 		return registry;
 	}
 }
