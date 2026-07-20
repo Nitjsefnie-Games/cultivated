@@ -731,5 +731,11 @@
 	"block.cultivated.mega_end_stone_bricks_waxed_botany_pot": "Mega End Stone Bricks Waxed Botany Pot",
 	"block.cultivated.mega_quartz_bricks_botany_pot": "Mega Quartz Bricks Botany Pot",
 	"block.cultivated.mega_quartz_bricks_hopper_botany_pot": "Mega Quartz Bricks Hopper Botany Pot",
-	"block.cultivated.mega_quartz_bricks_waxed_botany_pot": "Mega Quartz Bricks Waxed Botany Pot"
+	"block.cultivated.mega_quartz_bricks_waxed_botany_pot": "Mega Quartz Bricks Waxed Botany Pot",
+	"item.cultivated.elite_upgrade": "Elite Pot Upgrade",
+	"item.cultivated.ultra_upgrade": "Ultra Pot Upgrade",
+	"item.cultivated.mega_upgrade": "Mega Pot Upgrade",
+	"tooltip.cultivated.tier.hold_shift": "Hold Shift for tier bonuses",
+	"tooltip.cultivated.tier.speed": "Growth Speed: %s",
+	"tooltip.cultivated.tier.output": "Yield Bonus: %s"
 }

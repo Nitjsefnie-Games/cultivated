@@ -1,0 +1,24 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"N": "minecraft:netherite_ingot",
+		"U": "cultivated:ultra_upgrade",
+		"S": "minecraft:nether_star"
+	},
+	"pattern": [
+		"NNN",
+		"NUN",
+		"NSN"
+	],
+	"result": {
+		"id": "cultivated:mega_upgrade",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_mega_basic_pots"
+		}
+	]
+}

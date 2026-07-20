@@ -1,0 +1,23 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"I": "minecraft:iron_block",
+		"E": "minecraft:ender_pearl"
+	},
+	"pattern": [
+		"III",
+		"IEI",
+		"III"
+	],
+	"result": {
+		"id": "cultivated:elite_upgrade",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_elite_basic_pots"
+		}
+	]
+}

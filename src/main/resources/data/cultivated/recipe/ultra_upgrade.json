@@ -1,0 +1,24 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"D": "minecraft:diamond_block",
+		"U": "cultivated:elite_upgrade",
+		"E": "minecraft:ender_eye"
+	},
+	"pattern": [
+		"DDD",
+		"DUD",
+		"DED"
+	],
+	"result": {
+		"id": "cultivated:ultra_upgrade",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_ultra_basic_pots"
+		}
+	]
+}
