@@ -6,9 +6,11 @@ import dev.nitjsefnie.cultivated.recipe.FertilizerRecipe;
 import dev.nitjsefnie.cultivated.recipe.PotInteractionRecipe;
 import dev.nitjsefnie.cultivated.recipe.SoilRecipe;
 import dev.nitjsefnie.cultivated.registry.ModRecipes;
+import dev.nitjsefnie.cultivated.recipe.BotanyRecipe;
 import dev.nitjsefnie.cultivated.util.SidedReloadableCache;
 import java.util.ArrayList;
 import java.util.List;
+import net.fabricmc.fabric.api.recipe.v1.sync.SynchronizedRecipes;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -25,20 +27,20 @@ import net.minecraft.world.item.crafting.RecipeType;
  * from server recipes.
  */
 public final class PotRecipeCaches {
-	private static volatile RecipeManager clientManager;
+	private static volatile SynchronizedRecipes clientRecipes;
 	private static volatile RecipeManager serverManager;
 
 	private static final SidedReloadableCache<RecipeLookupCache<SoilRecipe>> SOILS = SidedReloadableCache.of(
-		() -> build(clientManager, ModRecipes.SOIL_TYPE), () -> build(serverManager, ModRecipes.SOIL_TYPE)
+		() -> buildClient(clientRecipes, ModRecipes.SOIL_TYPE), () -> build(serverManager, ModRecipes.SOIL_TYPE)
 	);
 	private static final SidedReloadableCache<RecipeLookupCache<CropRecipe>> CROPS = SidedReloadableCache.of(
-		() -> build(clientManager, ModRecipes.CROP_TYPE), () -> build(serverManager, ModRecipes.CROP_TYPE)
+		() -> buildClient(clientRecipes, ModRecipes.CROP_TYPE), () -> build(serverManager, ModRecipes.CROP_TYPE)
 	);
 	private static final SidedReloadableCache<RecipeLookupCache<FertilizerRecipe>> FERTILIZERS = SidedReloadableCache.of(
-		() -> build(clientManager, ModRecipes.FERTILIZER_TYPE), () -> build(serverManager, ModRecipes.FERTILIZER_TYPE)
+		() -> buildClient(clientRecipes, ModRecipes.FERTILIZER_TYPE), () -> build(serverManager, ModRecipes.FERTILIZER_TYPE)
 	);
 	private static final SidedReloadableCache<RecipeLookupCache<PotInteractionRecipe>> INTERACTIONS = SidedReloadableCache.of(
-		() -> build(clientManager, ModRecipes.POT_INTERACTION_TYPE), () -> build(serverManager, ModRecipes.POT_INTERACTION_TYPE)
+		() -> buildClient(clientRecipes, ModRecipes.POT_INTERACTION_TYPE), () -> build(serverManager, ModRecipes.POT_INTERACTION_TYPE)
 	);
 
 	private PotRecipeCaches() {
@@ -91,11 +93,13 @@ public final class PotRecipeCaches {
 	}
 
 	/**
-	 * Rebuild the client-side caches from the client's network-synced recipe manager. Invoked by the
-	 * client-init task on recipe sync; harmless if never called (client lookups then see empty caches).
+	 * Rebuild the client-side caches from Fabric's network-synced recipes. Invoked by the client
+	 * entrypoint on {@code ClientRecipeSynchronizedEvent}; harmless if never called (client lookups
+	 * then see empty caches). MC 26.2 no longer ships a full client {@code RecipeManager}, so the
+	 * client caches are fed from {@link SynchronizedRecipes} (the recipes Fabric opts into syncing).
 	 */
-	public static void rebuildClient(final RecipeManager manager, final RegistryAccess registries) {
-		clientManager = manager;
+	public static void rebuildClient(final SynchronizedRecipes recipes, final RegistryAccess registries) {
+		clientRecipes = recipes;
 		SOILS.invalidate(true);
 		CROPS.invalidate(true);
 		FERTILIZERS.invalidate(true);
@@ -103,13 +107,26 @@ public final class PotRecipeCaches {
 		Cultivated.LOGGER.info("Cultivated client recipe caches invalidated; will rebuild on next lookup");
 	}
 
-	private static <R extends dev.nitjsefnie.cultivated.recipe.BotanyRecipe> RecipeLookupCache<R> build(
+	private static <R extends BotanyRecipe> RecipeLookupCache<R> build(
 		final RecipeManager manager, final RecipeType<R> type
 	) {
 		if (manager == null) {
 			return RecipeLookupCache.empty();
 		}
 		return RecipeLookupCache.build(collect(manager, type));
+	}
+
+	private static <R extends BotanyRecipe> RecipeLookupCache<R> buildClient(
+		final SynchronizedRecipes recipes, final RecipeType<R> type
+	) {
+		if (recipes == null) {
+			return RecipeLookupCache.empty();
+		}
+		final List<R> collected = new ArrayList<>();
+		for (final RecipeHolder<R> holder : recipes.getAllOfType(type)) {
+			collected.add(holder.value());
+		}
+		return RecipeLookupCache.build(collected);
 	}
 
 	private static <T extends Recipe<?>> List<T> collect(final RecipeManager manager, final RecipeType<T> type) {

@@ -12,6 +12,9 @@
 	"entrypoints": {
 		"main": [
 			"dev.nitjsefnie.cultivated.Cultivated"
+		],
+		"client": [
+			"dev.nitjsefnie.cultivated.CultivatedClient"
 		]
 	},
 	"mixins": [

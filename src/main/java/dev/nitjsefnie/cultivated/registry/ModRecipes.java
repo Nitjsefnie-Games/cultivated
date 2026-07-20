@@ -7,6 +7,7 @@ import dev.nitjsefnie.cultivated.recipe.FertilizerRecipe;
 import dev.nitjsefnie.cultivated.recipe.PotInteractionRecipe;
 import dev.nitjsefnie.cultivated.recipe.SoilRecipe;
 import dev.nitjsefnie.cultivated.util.CodecHelper;
+import net.fabricmc.fabric.api.recipe.v1.sync.RecipeSynchronization;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -61,6 +62,20 @@ public final class ModRecipes {
 		registerSerializer("block_derived_crop", BLOCK_DERIVED_CROP_SERIALIZER);
 		registerSerializer("fertilizer", FERTILIZER_SERIALIZER);
 		registerSerializer("pot_interaction", POT_INTERACTION_SERIALIZER);
+
+		// Opt these recipe serializers into network sync so the client receives the full recipe
+		// objects (MC 26.2 no longer syncs recipes by default). The client cache (S2) is rebuilt
+		// from them via ClientRecipeSynchronizedEvent (see CultivatedClient).
+		syncToClients();
+	}
+
+	private static void syncToClients() {
+		RecipeSynchronization.synchronizeRecipeSerializer(SOIL_SERIALIZER);
+		RecipeSynchronization.synchronizeRecipeSerializer(BLOCK_DERIVED_SOIL_SERIALIZER);
+		RecipeSynchronization.synchronizeRecipeSerializer(CROP_SERIALIZER);
+		RecipeSynchronization.synchronizeRecipeSerializer(BLOCK_DERIVED_CROP_SERIALIZER);
+		RecipeSynchronization.synchronizeRecipeSerializer(FERTILIZER_SERIALIZER);
+		RecipeSynchronization.synchronizeRecipeSerializer(POT_INTERACTION_SERIALIZER);
 	}
 
 	private static void registerType(final String name, final RecipeType<?> type) {
