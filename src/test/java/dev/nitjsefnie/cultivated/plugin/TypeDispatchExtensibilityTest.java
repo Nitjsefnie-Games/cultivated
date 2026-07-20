@@ -17,6 +17,7 @@ import dev.nitjsefnie.cultivated.data.drop.DropProvider;
 import dev.nitjsefnie.cultivated.data.growth.GrowthAmount;
 import dev.nitjsefnie.cultivated.ingredient.CultivatedIngredient;
 import java.util.List;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,16 @@ class TypeDispatchExtensibilityTest {
 	@BeforeAll
 	static void boot() {
 		CultivatedTestBootstrap.bootstrap();
+	}
+
+	/** Undo the {@code test:*} types this suite adds so it leaves no cross-test mutation in the shared registries. */
+	@AfterAll
+	static void cleanup() {
+		Display.DISPATCH.unregister("test:dummy_display");
+		DropProvider.DISPATCH.unregister("test:dummy_drop");
+		GrowthAmount.DISPATCH.unregister("test:dummy_growth");
+		CultivatedIngredient.DISPATCH.unregister("test:dummy_ingredient");
+		LoadCondition.DISPATCH.unregister("test:dummy_condition");
 	}
 
 	private static JsonElement json(final String raw) {

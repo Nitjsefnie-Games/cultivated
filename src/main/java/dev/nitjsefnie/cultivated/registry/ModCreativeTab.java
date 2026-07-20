@@ -35,10 +35,10 @@ public final class ModCreativeTab {
 						output.accept(block);
 					}
 				}
-					// Tier-upgrade items after the pots (§D).
-					for (final Item upgrade : ModItems.UPGRADES) {
-						output.accept(upgrade);
-					}
+				// Tier-upgrade items after the pots (§D).
+				for (final Item upgrade : ModItems.UPGRADES) {
+					output.accept(upgrade);
+				}
 			})
 			.build();
 		BOTANY_POTS = Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, Cultivated.id("botany_pots"), tab);

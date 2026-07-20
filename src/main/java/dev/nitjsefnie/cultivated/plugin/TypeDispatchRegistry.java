@@ -2,8 +2,8 @@ package dev.nitjsefnie.cultivated.plugin;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
@@ -19,7 +19,7 @@ import java.util.function.Function;
  * @param <T> the dispatched value kind
  */
 public final class TypeDispatchRegistry<T> {
-	private final Map<String, MapCodec<? extends T>> byType = new HashMap<>();
+	private final Map<String, MapCodec<? extends T>> byType = new ConcurrentHashMap<>();
 	private final Codec<T> codec;
 
 	private TypeDispatchRegistry(final Function<T, String> typeGetter, final String unknownTypeMessage) {
@@ -46,9 +46,19 @@ public final class TypeDispatchRegistry<T> {
 		return new TypeDispatchRegistry<>(typeGetter, unknownTypeMessage);
 	}
 
-	/** Register (or override) the sub-codec for a {@code type} string. */
+	/**
+	 * Register (or override) the sub-codec for a {@code type} string. Must be called at init time
+	 * (before any datapack parse) — the backing map is a {@link ConcurrentHashMap} so seeding and
+	 * add-on registration are safe, but registrations made after parsing has begun are not guaranteed
+	 * visible to in-flight decodes.
+	 */
 	public void register(final String typeId, final MapCodec<? extends T> mapCodec) {
 		this.byType.put(typeId, mapCodec);
+	}
+
+	/** Remove a previously-registered {@code type} mapping (used by tests to undo global mutation). */
+	public void unregister(final String typeId) {
+		this.byType.remove(typeId);
 	}
 
 	/** The dispatching codec that resolves each {@code type} string from this registry. */
