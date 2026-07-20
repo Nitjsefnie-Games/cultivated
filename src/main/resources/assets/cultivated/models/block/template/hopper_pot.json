@@ -1,0 +1,70 @@
+{
+	"__comment": "Cultivated Task B6 - hand-authored hopper botany pot template. Same hollow 8-tall planter geometry as block/template/pot (the (2,0,2)->(14,8,14) box), but the interior floor shows a hopper grate (minecraft:block/hopper_inside, referenced directly so no vanilla PNG is shipped) to visually distinguish the auto-harvesting hopper variant. Per-material models override #material (outer faces); #material_top is accepted but unused here. render_type=cutout is set per child model.",
+	"textures": {
+		"particle": "#material",
+		"hopper_inside": "minecraft:block/hopper_inside"
+	},
+	"elements": [
+		{
+			"__comment": "floor with hopper grate interior",
+			"from": [2, 0, 2],
+			"to": [14, 2, 14],
+			"faces": {
+				"down": { "texture": "#material", "cullface": "down" },
+				"up": { "texture": "#hopper_inside" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "north wall",
+			"from": [2, 2, 2],
+			"to": [14, 8, 4],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "south wall",
+			"from": [2, 2, 12],
+			"to": [14, 8, 14],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "west wall",
+			"from": [2, 2, 4],
+			"to": [4, 8, 12],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "east wall",
+			"from": [12, 2, 4],
+			"to": [14, 8, 12],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		}
+	]
+}

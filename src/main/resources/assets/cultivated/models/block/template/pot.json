@@ -1,0 +1,69 @@
+{
+	"__comment": "Cultivated Task B6 - hand-authored basic botany pot template. Hollow 8-tall planter matching the (2,0,2)->(14,8,14) collision box (SPEC B.1): a 2-thick floor plus four walls, open top. Per-material models override #material (outer faces) and #material_top (interior floor). render_type=cutout is set per child model (Fabric-only, no code-side render-layer API in 26.2).",
+	"textures": {
+		"particle": "#material"
+	},
+	"elements": [
+		{
+			"__comment": "floor",
+			"from": [2, 0, 2],
+			"to": [14, 2, 14],
+			"faces": {
+				"down": { "texture": "#material", "cullface": "down" },
+				"up": { "texture": "#material_top" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "north wall",
+			"from": [2, 2, 2],
+			"to": [14, 8, 4],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "south wall",
+			"from": [2, 2, 12],
+			"to": [14, 8, 14],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "west wall",
+			"from": [2, 2, 4],
+			"to": [4, 8, 12],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		},
+		{
+			"__comment": "east wall",
+			"from": [12, 2, 4],
+			"to": [14, 8, 12],
+			"faces": {
+				"up": { "texture": "#material" },
+				"north": { "texture": "#material" },
+				"south": { "texture": "#material" },
+				"west": { "texture": "#material" },
+				"east": { "texture": "#material" }
+			}
+		}
+	]
+}
