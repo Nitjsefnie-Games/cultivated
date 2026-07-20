@@ -51,6 +51,16 @@ public final class PotMechanics {
 		return slot >= 0 && slot <= TOOL;
 	}
 
+	/**
+	 * Per-slot maximum stack size (§B.3): the SOIL and SEED slots hold at most one item so a single
+	 * pot only ever grows one crop at a time (a full stack of seeds would otherwise sit inertly); every
+	 * other slot (tool, storage) uses {@code defaultMax}. Pure so it can gate both the menu slot and the
+	 * block-entity container clamp identically.
+	 */
+	public static int maxStackSizeForSlot(final int slot, final int defaultMax) {
+		return slot == SOIL || slot == SEED ? Math.min(1, defaultMax) : defaultMax;
+	}
+
     /**
      * Comparator output while a crop is still growing: {@code ceil(14 * growthTime / required)},
      * clamped to {@code [0, 14]} (15 is reserved for a mature pot). Returns 0 for a non-positive

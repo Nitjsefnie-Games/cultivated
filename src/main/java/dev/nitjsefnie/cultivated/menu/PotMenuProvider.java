@@ -20,7 +20,9 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 public record PotMenuProvider(BotanyPotBlockEntity pot) implements ExtendedMenuProvider<BlockPos> {
 	@Override
 	public Component getDisplayName() {
-		return this.pot.getBlockState().getBlock().getName();
+		// PF2c: a fixed generic title for both basic and hopper pots — the full block name (e.g. "Mega
+		// Terracotta Hopper Botany Pot") overflows the GUI header.
+		return Component.translatable("container.cultivated.botany_pot");
 	}
 
 	@Override

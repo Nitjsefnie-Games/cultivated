@@ -190,7 +190,8 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			return;
 		}
 		this.items.set(slot, stack);
-		stack.limitSize(this.getMaxStackSize(stack));
+		// Soil/seed hold at most one item, even when set by automation/setItem (§B.3, PF2b).
+		stack.limitSize(PotMechanics.maxStackSizeForSlot(slot, this.getMaxStackSize(stack)));
 		this.onSlotChanged(slot);
 	}
 
@@ -509,6 +510,10 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.growthTime.reset();
 		this.setComparatorLevel(0);
 		this.setChanged();
+		// PF2a: the client renders growth from its own synced GrowthTime; without a block update on
+		// harvest it never sees the reset and freezes at mature. Push the reset so the crop visibly
+		// re-grows and re-produces each cycle.
+		this.syncToClients();
 	}
 
 	/** Basic-pot manual harvest (§B.2/§A.8): run drops exactly once, pop to world, reset growth. */
@@ -827,14 +832,20 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 	@Override
 	public CompoundTag getUpdateTag(final HolderLookup.Provider registries) {
-		// Sync only the input slots (soil/seed/tool) — the output buffer is not needed for rendering,
-		// and the comparator level is server-only (§B.3).
+		// Sync the input slots (soil/seed/tool) — the output buffer is not needed for rendering, and the
+		// comparator level is server-only (§B.3) — plus the growth accumulators. GrowthTime is what the
+		// renderer reads for the crop's growth stage, so it MUST be replicated: without it the client
+		// free-runs its own growth and never sees an auto-harvest reset, freezing the crop at mature
+		// (PF2a). GrowCooldown keeps the post-harvest recheck delay in step so the client does not
+		// re-grow a few ticks ahead of the server.
 		final TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
 		final NonNullList<ItemStack> syncItems = NonNullList.withSize(PotMechanics.SIZE, ItemStack.EMPTY);
 		for (int slot = 0; slot <= PotMechanics.TOOL; slot++) {
 			syncItems.set(slot, this.items.get(slot));
 		}
 		ContainerHelper.saveAllItems(output, syncItems, false);
+		output.putFloat("GrowthTime", this.growthTime.get());
+		output.putFloat("GrowCooldown", this.growCooldown.get());
 		return output.buildResult();
 	}
 

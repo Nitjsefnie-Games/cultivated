@@ -1,5 +1,6 @@
 package dev.nitjsefnie.cultivated.menu;
 
+import dev.nitjsefnie.cultivated.block.PotMechanics;
 import java.util.function.Predicate;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.Container;
@@ -33,6 +34,12 @@ public final class PotSlot {
 			@Override
 			public @Nullable Identifier getNoItemIcon() {
 				return icon;
+			}
+
+			@Override
+			public int getMaxStackSize() {
+				// PF2b: soil/seed hold at most one item; the tool slot keeps the container default.
+				return PotMechanics.maxStackSizeForSlot(slot, super.getMaxStackSize());
 			}
 		};
 	}

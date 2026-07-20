@@ -87,6 +87,31 @@ class PotMechanicsTest {
 		assertFalse(PotMechanics.isStorageSlot(PotMechanics.SIZE));
 	}
 
+	// ---- per-slot max stack size: soil/seed cap at 1, everything else keeps the default (PF2b) ----
+
+	@Test
+	void maxStackSize_soilAndSeedCapAtOne() {
+		assertEquals(1, PotMechanics.maxStackSizeForSlot(PotMechanics.SOIL, 64));
+		assertEquals(1, PotMechanics.maxStackSizeForSlot(PotMechanics.SEED, 64));
+		// Independent of how large the container default is.
+		assertEquals(1, PotMechanics.maxStackSizeForSlot(PotMechanics.SOIL, 99));
+		assertEquals(1, PotMechanics.maxStackSizeForSlot(PotMechanics.SEED, Integer.MAX_VALUE));
+	}
+
+	@Test
+	void maxStackSize_otherSlotsKeepDefault() {
+		assertEquals(64, PotMechanics.maxStackSizeForSlot(PotMechanics.TOOL, 64));
+		assertEquals(64, PotMechanics.maxStackSizeForSlot(PotMechanics.FIRST_STORAGE, 64));
+		assertEquals(16, PotMechanics.maxStackSizeForSlot(PotMechanics.LAST_STORAGE, 16));
+		assertEquals(1, PotMechanics.maxStackSizeForSlot(PotMechanics.TOOL, 1));
+	}
+
+	@Test
+	void maxStackSize_neverExceedsDefault() {
+		// A degenerate default below 1 is clamped, not raised, for soil/seed.
+		assertEquals(0, PotMechanics.maxStackSizeForSlot(PotMechanics.SOIL, 0));
+	}
+
 	// ---- automation faces: extract only from hopper storage via DOWN; never insert ----
 
 	@Test
