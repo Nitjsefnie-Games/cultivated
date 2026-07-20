@@ -28,12 +28,14 @@ public final class PotRenderMath {
 	 */
 	public static final float SOIL_BASE_Y = 2.0f / 16.0f;
 	/**
-	 * Soil is drawn vertically compressed to this fraction of the display's own scale so it fills the
-	 * shorter PF3 planter cavity (floor top y=2 to the y=6 rim, a 4-pixel depth) instead of overshooting it
-	 * (R2c — was 0.6375, tuned for the taller pre-PF3 model). With the default 0.625 display scale the soil
-	 * rises 0.625 × 0.4 = 0.25 of a block, from the floor top (0.125) to the rim (0.375).
+	 * Soil is drawn vertically compressed to this fraction of the display's own scale so it sits inside the
+	 * shorter PF3 planter cavity (floor top y=2 to the y=6 rim, a 4-pixel depth) with its top ~2 pixels BELOW
+	 * the rim — never coincident with it (R3a: at the old 0.4 the top landed exactly on the y=6 rim and z-fought
+	 * the rim quad, showing two overlaid textures). With the default 0.625 display scale the soil now rises
+	 * 0.625 × 0.2 = 0.125 of a block, from the floor top (0.125 = y2) to y=0.25 (y4), leaving a clear 2-pixel
+	 * gap below the y=6 (0.375) rim. Was 0.4 (R2c).
 	 */
-	public static final float SOIL_HEIGHT_SCALE = 0.4f;
+	public static final float SOIL_HEIGHT_SCALE = 0.2f;
 	/** Re-centring pivot for axis-aligned rotations: the block's own centre (§C.6). */
 	public static final float ROTATION_PIVOT = 0.5f;
 

@@ -722,13 +722,20 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.replaceInput(slot, replacement);
 	}
 
-	/** Replace an input slot (soil/seed), dropping any old stack above the pot (§B.6). */
+	/**
+	 * Replace an input slot (soil/seed) with {@code replacement} (§B.6). A genuinely DIFFERENT new item
+	 * drops the old stack above the pot; a SAME-item replacement is an in-place conversion — the block
+	 * inside the pot is converted, not swapped, so the old stack is NOT dropped (R3b: e.g. hoeing dirt →
+	 * dirt carrying the {@code cultivated:soil} farmland override must not pop a spurious dirt). The
+	 * override on the replacement drives BOTH growth (GrowthFormula soil modifier via computeSoil) and the
+	 * farmland render — the full conversion, not merely visual.
+	 */
 	private void replaceInput(final int slot, final ItemStack replacement) {
 		if (this.level == null) {
 			return;
 		}
 		final ItemStack old = this.getItem(slot);
-		if (!old.isEmpty()) {
+		if (PotMechanics.shouldDropReplacedInput(old, replacement)) {
 			Block.popResource(this.level, this.worldPosition.above(), old);
 		}
 		this.setItem(slot, replacement.copy());

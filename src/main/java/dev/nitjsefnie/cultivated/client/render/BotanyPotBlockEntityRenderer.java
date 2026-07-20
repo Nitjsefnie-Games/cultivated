@@ -175,8 +175,9 @@ public class BotanyPotBlockEntityRenderer implements BlockEntityRenderer<BotanyP
 		poseStack.mulPose(Axis.YP.rotationDegrees(-state.facingYRot));
 		poseStack.translate(-0.5f, 0.0f, -0.5f);
 
-		// Soil rests on the planter floor (y=2 → 0.125) and is compressed so it fills the shorter PF3 cavity
-		// up to the y=6 rim rather than overshooting it (R2c). The crop stack then starts at the soil's top.
+		// Soil rests on the planter floor (y=2 → 0.125) and is compressed so its top sits ~2px BELOW the y=6
+		// rim (top at y=4 → 0.25) rather than coincident with it — R3a: a rim-coincident top z-fought the rim
+		// quad. The crop stack then starts at the soil's real top (the submitStack return).
 		final float soilTop = submitStack(
 			state.soilDraws, poseStack, collector, camera, state.lightCoords, PotRenderMath.SOIL_BASE_Y, PotRenderMath.SOIL_HEIGHT_SCALE
 		);

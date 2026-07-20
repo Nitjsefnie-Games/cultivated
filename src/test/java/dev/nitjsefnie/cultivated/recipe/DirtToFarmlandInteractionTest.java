@@ -1,5 +1,6 @@
 package dev.nitjsefnie.cultivated.recipe;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -12,6 +13,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import dev.nitjsefnie.cultivated.CultivatedTestBootstrap;
+import dev.nitjsefnie.cultivated.block.PotMechanics;
 import dev.nitjsefnie.cultivated.cache.RecipeLookupCache;
 import dev.nitjsefnie.cultivated.ingredient.CultivatedIngredient;
 import dev.nitjsefnie.cultivated.registry.ModComponents;
@@ -149,6 +151,50 @@ class DirtToFarmlandInteractionTest {
 		assertSame(dirtToFarmland, resolved,
 			"firstMatching must skip the non-matching coarse_dirt recipe and return dirt_to_farmland");
 		assertNotSame(coarse, resolved, "the shadowing recipe must not be chosen for a dirt pot");
+	}
+
+	/**
+	 * R3b: hoeing a dirt/grass pot to farmland is an IN-PLACE conversion, not a swap. The resolved
+	 * {@code new_soil} is 1 {@code minecraft:dirt} carrying the {@code cultivated:soil} farmland override
+	 * (growth 0.10) — the SAME item as the pot's dirt — so replacing the soil must DROP NOTHING; only the
+	 * block-behind-the-soil is converted (override drives both growth and the farmland render).
+	 */
+	@Test
+	void hoeingDirtConvertsInPlaceAndDropsNothing() throws Exception {
+		final ItemStack oldSoil = new ItemStack(Items.DIRT);
+		final ItemStack newSoil = resolveNewSoil("dirt_to_farmland");
+
+		assertSame(Items.DIRT, newSoil.getItem(), "new_soil resolves to a dirt stack");
+		assertEquals(1, newSoil.getCount(), "new_soil is a single item (count sanity)");
+		final SoilRecipe override = newSoil.get(ModComponents.SOIL_OVERRIDE);
+		assertNotNull(override, "converted soil carries the cultivated:soil farmland override");
+		assertTrue(Math.abs(override.growthModifier() - 0.10f) < 1.0e-6f,
+			"override drives growth with the +0.10 modifier, was " + override.growthModifier());
+		assertFalse(PotMechanics.shouldDropReplacedInput(oldSoil, newSoil),
+			"a same-item (dirt → dirt+override) conversion must NOT drop the old dirt");
+	}
+
+	/**
+	 * R3b guard against a regression of the genuinely-different interactions: water+lava → obsidian
+	 * replaces the lava-bucket soil with a DIFFERENT item ({@code minecraft:obsidian}), so the old soil
+	 * IS still dropped as before.
+	 */
+	@Test
+	void differentItemInteractionStillDropsOldSoil() throws Exception {
+		final ItemStack oldSoil = new ItemStack(Items.LAVA_BUCKET);
+		final ItemStack newSoil = resolveNewSoil("lava_to_obsidian");
+
+		assertSame(Items.OBSIDIAN, newSoil.getItem(), "new_soil resolves to obsidian, a different item");
+		assertTrue(PotMechanics.shouldDropReplacedInput(oldSoil, newSoil),
+			"a different-item replacement must still drop the old soil (§B.6)");
+	}
+
+	private static ItemStack resolveNewSoil(final String recipe) throws Exception {
+		final JsonElement newSoil = readShipped("/data/cultivated/recipe/pot_interaction/" + recipe + ".json")
+			.getAsJsonObject().get("new_soil");
+		final ItemStack resolved = LazyItemStack.CODEC.parse(ops(), newSoil).result().orElseThrow().get();
+		assertFalse(resolved.isEmpty(), recipe + " new_soil must resolve to a non-empty stack");
+		return resolved;
 	}
 
 	private static PotInteractionRecipe parseInteraction(final String name) throws Exception {

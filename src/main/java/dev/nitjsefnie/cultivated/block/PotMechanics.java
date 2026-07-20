@@ -1,6 +1,7 @@
 package dev.nitjsefnie.cultivated.block;
 
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Phase B — the pure, world-independent pot arithmetic and slot rules, factored out of
@@ -128,6 +129,19 @@ public final class PotMechanics {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Whether replacing an input slot's {@code old} stack with {@code replacement} should DROP the old
+	 * stack above the pot (§B.6 / R3b). A same-item replacement — e.g. hoeing a dirt/grass pot to
+	 * farmland, which swaps {@code minecraft:dirt} for {@code minecraft:dirt} carrying the
+	 * {@code cultivated:soil} farmland override — is an IN-PLACE conversion of the block inside the pot,
+	 * so nothing is dropped (dropping the old dirt is the spurious pop the player saw). A genuinely
+	 * DIFFERENT new item (water+lava → obsidian) still drops the old soil remainder. An empty old slot
+	 * never drops. Item identity only ({@link ItemStack#isSameItem}), ignoring components/count.
+	 */
+	public static boolean shouldDropReplacedInput(final ItemStack old, final ItemStack replacement) {
+		return !old.isEmpty() && !ItemStack.isSameItem(old, replacement);
 	}
 
 	// ---- right-click interaction order (§B.2) — pure decision logic ----
