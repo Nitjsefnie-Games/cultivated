@@ -5,10 +5,13 @@ import dev.nitjsefnie.cultivated.menu.PotMenuTextures;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Phase B §B.7/§B.8 — the client screen for the {@code cultivated:hopper_pot_menu}. Draws the 176×166
@@ -33,5 +36,12 @@ public class HopperPotScreen extends AbstractContainerScreen<HopperPotMenu> {
 			RenderPipelines.GUI_TEXTURED, PotMenuTextures.HOPPER_BACKGROUND, left, top,
 			0.0F, 0.0F, this.imageWidth, this.imageHeight, 256, 256
 		);
+	}
+
+	@Override
+	protected List<Component> getTooltipFromContainerItem(final ItemStack itemStack) {
+		final List<Component> lines = new ArrayList<>(super.getTooltipFromContainerItem(itemStack));
+		PotTooltip.appendLines(lines, this.menu, this.hoveredSlot, itemStack);
+		return lines;
 	}
 }
