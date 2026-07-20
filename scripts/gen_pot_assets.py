@@ -90,8 +90,12 @@ def gen_block_model(material: str, pot_type: str) -> None:
     name = variant_name(material, pot_type)
     side_texture = f"minecraft:block/{material}"
     if pot_type == "waxed":
-        # Reuse the basic pot's geometry + textures by parenting it (render_type is inherited).
-        obj = {"parent": f"{MODID}:block/{basic_name(material)}"}
+        # Reuse the basic pot's geometry + textures by parenting it, but declare render_type
+        # explicitly (do not rely on it being inherited through the parent chain).
+        obj = {
+            "parent": f"{MODID}:block/{basic_name(material)}",
+            "render_type": "minecraft:cutout",
+        }
     elif pot_type == "hopper":
         obj = {
             "parent": f"{MODID}:block/template/hopper_pot",

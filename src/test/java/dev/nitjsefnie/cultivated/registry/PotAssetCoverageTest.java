@@ -97,9 +97,11 @@ class PotAssetCoverageTest {
 				material + " hopper model missing cutout render_type");
 			assertEquals("cultivated:block/template/hopper_pot", hopper.get("parent").getAsString());
 
-			// Waxed reuses the basic model by parenting it (render_type inherited).
+			// Waxed reuses the basic model by parenting it, and still declares cutout explicitly.
 			final JsonObject waxed = readJson(ASSETS + "models/block/" + material + "_waxed_botany_pot.json");
 			assertEquals("cultivated:block/" + material + "_botany_pot", waxed.get("parent").getAsString());
+			assertEquals("minecraft:cutout", waxed.get("render_type").getAsString(),
+				material + " waxed model missing cutout render_type");
 		}
 	}
 

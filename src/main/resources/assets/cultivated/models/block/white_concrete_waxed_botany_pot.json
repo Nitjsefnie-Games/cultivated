@@ -1,3 +1,4 @@
 {
-	"parent": "cultivated:block/white_concrete_botany_pot"
+	"parent": "cultivated:block/white_concrete_botany_pot",
+	"render_type": "minecraft:cutout"
 }
