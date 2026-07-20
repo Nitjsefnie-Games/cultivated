@@ -64,6 +64,10 @@ public final class EntityDisplayRenderer implements DisplayRenderer<Display> {
 				poseStack.mulPose(Axis.YP.rotationDegrees(spin));
 			}
 			for (final EntityRenderState state : states) {
+				// The display entity is detached from the world, so extractEntity gave it uninitialised
+				// (dark) light — light it with the pot's own block light, the same packed value the pot's
+				// block-model display layers submit with (§C.5), so the mob is lit like the pot not black.
+				state.lightCoords = lightCoords;
 				dispatcher.submit(state, camera, 0.0, 0.0, 0.0, poseStack, collector);
 			}
 			poseStack.popPose();

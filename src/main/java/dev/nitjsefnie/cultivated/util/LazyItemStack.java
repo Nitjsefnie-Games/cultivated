@@ -5,6 +5,8 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.DynamicOps;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -49,6 +51,18 @@ public final class LazyItemStack {
 
 	private LazyItemStack(final Dynamic<?> raw) {
 		this.raw = raw;
+	}
+
+	/**
+	 * Wrap an already-materialised {@link ItemStack} as a {@link LazyItemStack} for runtime-constructed
+	 * drops (e.g. the spawn-egg harvest drop). The stack is serialised through {@link ItemStack#CODEC}
+	 * into the same raw snapshot form the {@link #CODEC decode path} captures — so it must be called when
+	 * item components are already bound (harvest time), not during recipe parse. The full {@code
+	 * components} patch is preserved, and {@link #get()} materialises it back on first use.
+	 */
+	public static LazyItemStack of(final ItemStack stack) {
+		final Tag encoded = ItemStack.CODEC.encodeStart(NbtOps.INSTANCE, stack).getOrThrow();
+		return new LazyItemStack(new Dynamic<>(NbtOps.INSTANCE, encoded));
 	}
 
 	/**

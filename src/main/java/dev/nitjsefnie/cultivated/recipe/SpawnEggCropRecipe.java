@@ -9,6 +9,7 @@ import dev.nitjsefnie.cultivated.data.display.RenderOptions.Vec3f;
 import dev.nitjsefnie.cultivated.data.drop.DropProvider;
 import dev.nitjsefnie.cultivated.ingredient.CultivatedIngredient;
 import dev.nitjsefnie.cultivated.registry.ModRecipes;
+import dev.nitjsefnie.cultivated.util.LazyItemStack;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.nbt.CompoundTag;
@@ -92,6 +93,12 @@ public record SpawnEggCropRecipe(
 		// finalize_spawn = true: the harvest builds the mob through its own finalizeSpawn (small chance
 		// armored) and rolls both its death loot table and its worn equipment.
 		final DropProvider drop = new DropProvider.EntityDrop(entityNbt.copy(), this.damageSource, true);
+		// A rare (0.1%) bonus: harvest can also yield the mob's own spawn egg back, ON TOP of the death
+		// loot + equipment. Built from the planted seed directly (components bound at harvest time), so it
+		// is generic for any spawn egg — vanilla or modded.
+		final DropProvider eggDrop = new DropProvider.Items(List.of(
+			new DropProvider.Items.Entry(LazyItemStack.of(seedEgg.copyWithCount(1)), 0.001f)
+		));
 
 		return new CropRecipe(
 			this.primaryIngredient(),
@@ -99,7 +106,7 @@ public record SpawnEggCropRecipe(
 			this.growTime,
 			List.of(display),
 			this.lightLevel,
-			List.of(drop),
+			List.of(drop, eggDrop),
 			Optional.empty(),
 			Optional.empty(),
 			this.yield,

@@ -70,10 +70,24 @@ class SpawnEggCropRecipeTest {
 		final Display.Entity display = assertInstanceOf(Display.Entity.class, resolved.displays().getFirst());
 		assertEquals("minecraft:zombie", display.entity().getStringOr("id", ""), "display entity is the egg's type");
 
-		assertEquals(1, resolved.drops().size(), "exactly one entity drop");
+		assertEquals(2, resolved.drops().size(), "the entity death-loot drop plus the rare spawn-egg drop");
 		final DropProvider.EntityDrop drop = assertInstanceOf(DropProvider.EntityDrop.class, resolved.drops().getFirst());
 		assertEquals("minecraft:zombie", drop.entity().getStringOr("id", ""), "drop entity is the egg's type");
 		assertTrue(drop.finalizeSpawn(), "the derived drop must finalize the mob so equipment can roll");
+	}
+
+	@Test
+	void harvestHasRareChanceToDropTheSpawnEggBack() {
+		final SpawnEggCropRecipe recipe = sampleRecipe();
+		final CropRecipe resolved = recipe.resolveFor(new ItemStack(Items.ZOMBIE_SPAWN_EGG));
+		assertNotNull(resolved, "a zombie spawn egg must resolve to a crop");
+
+		// The second drop is a 0.1%-chance items drop yielding the egg itself, on top of the death loot.
+		final DropProvider.Items eggDrop = assertInstanceOf(DropProvider.Items.class, resolved.drops().get(1));
+		assertEquals(1, eggDrop.items().size(), "exactly one bonus egg entry");
+		final DropProvider.Items.Entry entry = eggDrop.items().getFirst();
+		assertEquals(0.001f, entry.chance(), "a 0.1% drop chance");
+		assertEquals(Items.ZOMBIE_SPAWN_EGG, entry.result().get().getItem(), "the bonus drop is the egg itself");
 	}
 
 	@Test
