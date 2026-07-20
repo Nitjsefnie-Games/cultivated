@@ -58,6 +58,15 @@ class DisplayEntityCacheTest {
 		assertFalse(DisplayEntityCache.shouldTick(100L, 99L));
 	}
 
+	@Test
+	void displayEntityIdIsAValidNonSentinelId() {
+		// 26.2's Entity#getId() throws "Tried to access entity ID before ID assignment" while the id is
+		// still its unassigned sentinel of 0, and the living-entity render path (ItemModelResolver
+		// .updateForLiving) reads it as a render seed. Every built display entity is therefore stamped
+		// with this id on cache build, so it must never be the 0 sentinel (§C.5).
+		assertNotEquals(0, DisplayEntityCache.DISPLAY_ENTITY_ID);
+	}
+
 	private static CompoundTag pigTag() {
 		final CompoundTag tag = new CompoundTag();
 		tag.putString("id", "minecraft:pig");

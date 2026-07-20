@@ -31,6 +31,16 @@ public final class DisplayEntityCache {
 	/** Sentinel for "never ticked": any real game time is greater, so the first tick always runs. */
 	private static final long NEVER_TICKED = Long.MIN_VALUE;
 
+	/**
+	 * A fixed, non-zero id stamped onto every built display entity (and its passengers). 26.2's
+	 * living-entity render path ({@code ItemModelResolver.updateForLiving}) reads {@link Entity#getId()}
+	 * as a render seed, and {@code getId()} throws {@code "Tried to access entity ID before ID
+	 * assignment"} while the id is still its unassigned sentinel of {@code 0}. These display entities are
+	 * detached — never added to a {@link Level} — so the value only has to be non-zero and stable: it is
+	 * used purely as a deterministic render seed, never for entity lookup (§C.5).
+	 */
+	static final int DISPLAY_ENTITY_ID = 1;
+
 	private final Map<CompoundTag, Entry> byNbt = new HashMap<>();
 	private @Nullable Level level;
 
@@ -87,13 +97,27 @@ public final class DisplayEntityCache {
 
 	private static @Nullable Entity build(final CompoundTag tag, final Level level) {
 		try {
-			return EntityType.loadEntityRecursive(
+			final Entity built = EntityType.loadEntityRecursive(
 				tag.copy(), level, new EntitySpawnRequest(EntitySpawnReason.LOAD, true), EntityProcessor.NOP
 			);
+			if (built != null) {
+				assignDisplayId(built);
+			}
+			return built;
 		} catch (final Exception e) {
 			Cultivated.LOGGER.warn("Failed to build display entity from NBT {}", tag, e);
 			return null;
 		}
+	}
+
+	/**
+	 * Stamp {@link #DISPLAY_ENTITY_ID} onto {@code entity} and every one of its (indirect) passengers so
+	 * the 26.2 living-entity render path can read a valid {@link Entity#getId()} for each — the whole
+	 * passenger stack is submitted through the render pipeline (see {@code EntityDisplayRenderer}). Without
+	 * this the detached entity keeps its unassigned id sentinel and {@code getId()} throws mid-extract.
+	 */
+	private static void assignDisplayId(final Entity entity) {
+		entity.getSelfAndPassengers().forEach(e -> e.setId(DISPLAY_ENTITY_ID));
 	}
 
 	/** A cached entity plus the game time it was last ticked (per-NBT animation state). */
