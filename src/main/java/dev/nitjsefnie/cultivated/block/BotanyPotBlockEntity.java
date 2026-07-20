@@ -60,9 +60,18 @@ import org.jspecify.annotations.Nullable;
  */
 public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContainer {
 	/**
-	 * Assigned by Task B2 when it registers {@code cultivated:botany_pot} over the pot blocks. The
-	 * constructor reads it lazily, so this class links and its static logic tests without a live
-	 * registry; constructing an instance before B2 assigns this throws a clear error.
+	 * Per-tier block-entity types, one registered over the blocks of each {@link Tier} (base by Task B2,
+	 * the three tiers by Task D2). A pot block entity reports the type registered for its <em>block's</em>
+	 * tier — required so {@link BlockEntityType#isValid} accepts the block on construction and ticking and
+	 * so save/load round-trips under the correct id (§D). Populated by
+	 * {@link dev.nitjsefnie.cultivated.registry.ModBlockEntities} via {@link #registerType}.
+	 */
+	private static final java.util.Map<Tier, BlockEntityType<BotanyPotBlockEntity>> TYPES = new java.util.EnumMap<>(Tier.class);
+
+	/**
+	 * The base ({@link Tier#BASE}) type, kept as a named handle for the {@code cultivated:botany_pot}
+	 * consumers that reference it directly (client renderer wiring). Assigned by {@link #registerType} for
+	 * the base tier; {@code null} until Task B2 registration runs.
 	 */
 	public static @Nullable BlockEntityType<BotanyPotBlockEntity> TYPE;
 
@@ -84,16 +93,35 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	private final ReloadableCache<SoilRecipe> soilCache = ReloadableCache.of(this::computeSoil);
 
 	public BotanyPotBlockEntity(final BlockPos pos, final BlockState state) {
-		super(requireType(), pos, state);
+		super(typeFor(tierOf(state)), pos, state);
 		this.potType = state.getBlock() instanceof PotType.Provider provider ? provider.potType() : PotType.BASIC;
 		this.tier = state.getBlock() instanceof Tier.Provider provider ? provider.tier() : Tier.BASE;
 	}
 
-	private static BlockEntityType<BotanyPotBlockEntity> requireType() {
-		if (TYPE == null) {
-			throw new IllegalStateException("BotanyPotBlockEntity.TYPE not registered yet (assigned in Task B2)");
+	private static Tier tierOf(final BlockState state) {
+		return state.getBlock() instanceof Tier.Provider provider ? provider.tier() : Tier.BASE;
+	}
+
+	/** Record the block-entity type registered for {@code tier}; called once per tier by Task B2/D2. */
+	public static void registerType(final Tier tier, final BlockEntityType<BotanyPotBlockEntity> type) {
+		TYPES.put(tier, type);
+		if (tier == Tier.BASE) {
+			TYPE = type;
 		}
-		return TYPE;
+	}
+
+	/**
+	 * The block-entity type registered for {@code tier}. Read lazily by the constructor and the block's
+	 * ticker wiring, so this class links and its static logic tests without a live registry; resolving a
+	 * tier before Task B2/D2 registration has run throws a clear error.
+	 */
+	public static BlockEntityType<BotanyPotBlockEntity> typeFor(final Tier tier) {
+		final BlockEntityType<BotanyPotBlockEntity> type = TYPES.get(tier);
+		if (type == null) {
+			throw new IllegalStateException(
+				"BotanyPotBlockEntity type for tier " + tier + " not registered yet (assigned in Task B2/D2)");
+		}
+		return type;
 	}
 
 	public PotType getPotType() {

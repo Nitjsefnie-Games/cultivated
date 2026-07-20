@@ -5,7 +5,9 @@ import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
 import dev.nitjsefnie.cultivated.client.BasicPotScreen;
 import dev.nitjsefnie.cultivated.client.HopperPotScreen;
 import dev.nitjsefnie.cultivated.client.render.BotanyPotBlockEntityRenderer;
+import dev.nitjsefnie.cultivated.registry.ModBlockEntities;
 import dev.nitjsefnie.cultivated.registry.ModMenus;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.recipe.v1.sync.ClientRecipeSynchronizedEvent;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
@@ -35,9 +37,12 @@ public final class CultivatedClient implements ClientModInitializer {
 		MenuScreens.register(ModMenus.BASIC_POT, BasicPotScreen::new);
 		MenuScreens.register(ModMenus.HOPPER_POT, HopperPotScreen::new);
 
-		// Draw the soil/crop displays in the planter (§C). The BE type was registered during common
-		// init (Task B2), which runs before client init.
-		BlockEntityRendererRegistry.register(BotanyPotBlockEntity.TYPE, BotanyPotBlockEntityRenderer::new);
+		// Draw the soil/crop displays in the planter (§C), for the base pot BE type and each tier BE type
+		// (§D) — all share the one renderer. The BE types were registered during common init (Task B2/D2),
+		// which runs before client init.
+		for (final BlockEntityType<BotanyPotBlockEntity> type : ModBlockEntities.TYPES.values()) {
+			BlockEntityRendererRegistry.register(type, BotanyPotBlockEntityRenderer::new);
+		}
 
 		Cultivated.LOGGER.info("Cultivated client recipe-sync, screen and renderer wiring initialised");
 	}

@@ -4,8 +4,11 @@ import dev.nitjsefnie.cultivated.Cultivated;
 import dev.nitjsefnie.cultivated.block.BotanyPotBlock;
 import dev.nitjsefnie.cultivated.block.PotMaterials;
 import dev.nitjsefnie.cultivated.block.PotType;
+import dev.nitjsefnie.cultivated.block.Tier;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -34,8 +37,15 @@ public final class ModBlocks {
 	/** Blast resistance (§B.1: ~4.2). */
 	private static final float RESISTANCE = 4.2f;
 
-	/** Every registered pot block, in registration order. Empty until {@link #register()} runs. */
+	/** Every registered BASE pot block ({@link Tier#BASE}), in registration order. Empty until {@link #register()} runs. */
 	public static final List<Block> POTS = new ArrayList<>();
+
+	/**
+	 * The tiered pot blocks (§D) grouped by {@link Tier} (elite/ultra/mega), each list holding that
+	 * tier's 183 blocks in registration order. Consumed by {@link ModBlockEntities} (one BE type per
+	 * tier) and {@link ModCreativeTab}. Empty until {@link #register()} runs; excludes {@link Tier#BASE}.
+	 */
+	public static final Map<Tier, List<Block>> TIERED_POTS = new EnumMap<>(Tier.class);
 
 	private ModBlocks() {
 	}
@@ -44,16 +54,30 @@ public final class ModBlocks {
 		if (!POTS.isEmpty()) {
 			return; // idempotent guard
 		}
+		// BASE pots (existing 183) — unchanged.
 		for (final String material : PotMaterials.ALL) {
 			final MapColor mapColor = mapColorOf(material);
 			for (final PotType type : PotType.values()) {
-				POTS.add(registerPot(PotMaterials.potBlockName(material, type), type, mapColor));
+				POTS.add(registerPot(Tier.BASE, PotMaterials.potBlockName(material, type), type, mapColor));
 			}
 		}
-		Cultivated.LOGGER.info("Registered {} botany pot blocks", POTS.size());
+		// Tiered pots (§D): elite/ultra/mega × 61 materials × 3 pot types = 549, grouped per tier.
+		for (final Tier tier : new Tier[] {Tier.ELITE, Tier.ULTRA, Tier.MEGA}) {
+			final List<Block> tierBlocks = new ArrayList<>();
+			for (final String material : PotMaterials.ALL) {
+				final MapColor mapColor = mapColorOf(material);
+				for (final PotType type : PotType.values()) {
+					final String name = tier.idPrefix() + "_" + PotMaterials.potBlockName(material, type);
+					tierBlocks.add(registerPot(tier, name, type, mapColor));
+				}
+			}
+			TIERED_POTS.put(tier, List.copyOf(tierBlocks));
+		}
+		Cultivated.LOGGER.info("Registered {} base + {} tiered botany pot blocks",
+			POTS.size(), TIERED_POTS.values().stream().mapToInt(List::size).sum());
 	}
 
-	private static Block registerPot(final String name, final PotType type, final MapColor mapColor) {
+	private static Block registerPot(final Tier tier, final String name, final PotType type, final MapColor mapColor) {
 		final Identifier id = Cultivated.id(name);
 		final ResourceKey<Block> blockKey = ResourceKey.create(Registries.BLOCK, id);
 
@@ -66,7 +90,7 @@ public final class ModBlocks {
 			.lightLevel(state -> state.getValue(BotanyPotBlock.LEVEL))
 			.setId(blockKey);
 
-		final BotanyPotBlock block = new BotanyPotBlock(type, properties);
+		final BotanyPotBlock block = new BotanyPotBlock(tier, type, properties);
 		Registry.register(BuiltInRegistries.BLOCK, blockKey, block);
 
 		final ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, id);

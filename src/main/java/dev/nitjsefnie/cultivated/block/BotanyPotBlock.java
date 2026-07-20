@@ -178,8 +178,9 @@ public class BotanyPotBlock extends BaseEntityBlock implements SimpleWaterlogged
 	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
 		final Level level, final BlockState state, final BlockEntityType<T> type
 	) {
-		// Server and client both tick (§B.5); waxed pots short-circuit inside the tick body.
-		return createTickerHelper(type, BotanyPotBlockEntity.TYPE, BotanyPotBlockEntity::tick);
+		// Server and client both tick (§B.5); waxed pots short-circuit inside the tick body. The expected
+		// type is this block's tier type (§D) so tiered pots tick under their own BE type, not the base.
+		return createTickerHelper(type, BotanyPotBlockEntity.typeFor(this.tier), BotanyPotBlockEntity::tick);
 	}
 
 	// ---- comparator (§B.3, B1 review carry-over) ----
