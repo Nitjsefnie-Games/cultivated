@@ -1,7 +1,9 @@
 package dev.nitjsefnie.cultivated.client.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.nitjsefnie.cultivated.data.display.Display;
 import dev.nitjsefnie.cultivated.data.display.RenderOptions.Vec3f;
@@ -38,6 +40,22 @@ class DisplayEntityCacheTest {
 		cowTag.putString("id", "minecraft:cow");
 		final Display.Entity cow = entity(cowTag, 0.0f);
 		assertNotEquals(DisplayEntityCache.cacheKey(pig), DisplayEntityCache.cacheKey(cow));
+	}
+
+	@Test
+	void ticksExactlyOnceWhenGameTimeAdvances() {
+		// Never ticked yet (sentinel far below any real game time) → the first tick runs.
+		assertTrue(DisplayEntityCache.shouldTick(Long.MIN_VALUE, 0L));
+		// Game time advanced by one tick → advance once.
+		assertTrue(DisplayEntityCache.shouldTick(100L, 101L));
+	}
+
+	@Test
+	void doesNotReTickWithinTheSameGameTick() {
+		// Same game time (another pot sharing the entity, or another frame in the same tick) → no re-tick.
+		assertFalse(DisplayEntityCache.shouldTick(100L, 100L));
+		// Game time somehow not advanced (e.g. paused / went backwards) → no tick.
+		assertFalse(DisplayEntityCache.shouldTick(100L, 99L));
 	}
 
 	private static CompoundTag pigTag() {

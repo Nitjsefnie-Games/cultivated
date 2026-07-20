@@ -16,7 +16,7 @@ import net.minecraft.world.entity.Entity;
 
 /**
  * Phase C §C.5 — renders an {@code entity} display: builds the entity from NBT (cached via
- * {@link DisplayEntityCache}), optionally advances its animation each frame ({@code should_tick}),
+ * {@link DisplayEntityCache}), optionally advances its animation once per game tick ({@code should_tick}),
  * scales/offsets it (via the resolved {@link RenderOptions}), spins it around Y by {@code spin_speed *
  * 360° * progress} ({@link PotRenderMath#spinDegrees}), and submits it and its passengers through the
  * 26.2 {@link EntityRenderDispatcher} render-state pipeline ({@code extractEntity} at extract time,
@@ -33,12 +33,15 @@ public final class EntityDisplayRenderer implements DisplayRenderer<Display> {
 		if (entity == null) {
 			return;
 		}
-		if (entityDisplay.shouldTick()) {
+		// Advance the shared cached entity at most once per game tick (not once per pot per frame) so
+		// animation speed is independent of pot count and framerate (§C.5).
+		if (entityDisplay.shouldTick() && context.shouldTickDisplayEntity(entityDisplay)) {
 			tick(entity);
 		}
 
 		final EntityRenderDispatcher dispatcher = context.entityRenderDispatcher();
-		final List<EntityRenderState> states = extractStates(entity, dispatcher, context.partialTicks());
+		final List<EntityRenderState> states = new ArrayList<>();
+		extractStates(entity, dispatcher, context.partialTicks(), states);
 		if (states.isEmpty()) {
 			return;
 		}
@@ -62,15 +65,14 @@ public final class EntityDisplayRenderer implements DisplayRenderer<Display> {
 		out.add(new ResolvedDisplay(geometry, options, context.growthScale()));
 	}
 
-	private static List<EntityRenderState> extractStates(
-		final Entity entity, final EntityRenderDispatcher dispatcher, final float partialTicks
+	/** Extract render states for {@code entity} and its whole passenger stack, recursing into nested riders. */
+	private static void extractStates(
+		final Entity entity, final EntityRenderDispatcher dispatcher, final float partialTicks, final List<EntityRenderState> out
 	) {
-		final List<EntityRenderState> states = new ArrayList<>();
-		states.add(dispatcher.extractEntity(entity, partialTicks));
+		out.add(dispatcher.extractEntity(entity, partialTicks));
 		for (final Entity passenger : entity.getPassengers()) {
-			states.add(dispatcher.extractEntity(passenger, partialTicks));
+			extractStates(passenger, dispatcher, partialTicks, out);
 		}
-		return states;
 	}
 
 	/** Render transform for an entity display: its own {@code scale}/{@code offset}, no faces/fluid/tint. */
@@ -79,7 +81,7 @@ public final class EntityDisplayRenderer implements DisplayRenderer<Display> {
 		return new RenderOptions(entityDisplay.scale(), offset, List.of(), false, Optional.empty(), RenderOptions.ALL_FACES);
 	}
 
-	/** Best-effort per-frame animation advance for a detached display entity ({@code should_tick}). */
+	/** Best-effort once-per-game-tick animation advance for a detached display entity ({@code should_tick}). */
 	private static void tick(final Entity entity) {
 		try {
 			entity.setNoGravity(true);

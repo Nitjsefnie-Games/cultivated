@@ -108,6 +108,18 @@ public final class DisplayResolveContext {
 	}
 
 	/**
+	 * Whether {@code display}'s cached entity should advance its animation this frame — {@code true} at
+	 * most once per game tick per cached entity, so animation speed is decoupled from framerate and from
+	 * how many pots share the entity (§C.5). Returns {@code false} when there is no level.
+	 */
+	public boolean shouldTickDisplayEntity(final Display.Entity display) {
+		if (this.level == null) {
+			return false;
+		}
+		return this.entityCache.markTickedIfDue(display, this.level.getGameTime());
+	}
+
+	/**
 	 * Resolve a {@code simple} display (§C.4) into geometry: the block-state model honoring the option
 	 * {@code faces} (high-level fast path when all faces are drawn, low-level VertexConsumer path when
 	 * restricted) and its {@code render_fluid} layer if requested. Tint (explicit {@code color} or the
