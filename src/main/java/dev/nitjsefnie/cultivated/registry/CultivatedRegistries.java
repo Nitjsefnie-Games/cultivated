@@ -17,7 +17,8 @@ public final class CultivatedRegistries {
 		ModComponents.register();
 		ModBlocks.register();
 		ModBlockEntities.register();
+		ModMenus.register();
 		ModCreativeTab.register();
-		Cultivated.LOGGER.info("Registered Cultivated recipes, components, attributes, blocks, block-entities and creative tab");
+		Cultivated.LOGGER.info("Registered Cultivated recipes, components, attributes, blocks, block-entities, menus and creative tab");
 	}
 }
