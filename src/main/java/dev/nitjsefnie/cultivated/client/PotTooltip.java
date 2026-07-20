@@ -65,10 +65,14 @@ public final class PotTooltip {
 		// Growth tracks game ticks, so real time to mature = requiredGrowthTicks / current tick rate.
 		final float tickRate = level != null ? level.tickRateManager().tickrate() : TickAccumulator.NORMAL_TICK_RATE;
 
-		// §A.11: an override component short-circuits to its own embedded recipe; else the client cache.
+		// §A.11: an override component short-circuits to its own embedded recipe; else the client caches.
+		// Resolve exactly as the BE/menu do — normal crop first, else the generic spawn-egg mechanism —
+		// so a hovered spawn egg surfaces the same grow-time/yield lines as any crop.
 		CropRecipe crop = stack.get(ModComponents.CROP_OVERRIDE);
 		if (crop == null) {
-			crop = PotRecipeCaches.crops(true).lookup(stack, SimplePotContext.ofSeed(stack));
+			crop = AbstractPotMenu.resolveCrop(
+				PotRecipeCaches.crops(true), PotRecipeCaches.spawnEggCrops(true), stack
+			);
 		}
 		SoilRecipe soil = stack.get(ModComponents.SOIL_OVERRIDE);
 		if (soil == null) {

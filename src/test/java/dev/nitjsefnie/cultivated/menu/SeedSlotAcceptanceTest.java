@@ -1,7 +1,9 @@
 package dev.nitjsefnie.cultivated.menu;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonElement;
@@ -89,6 +91,22 @@ class SeedSlotAcceptanceTest {
 			"any spawn egg resolves — the mechanism is not special-cased to one mob");
 		assertFalse(AbstractPotMenu.cropResolves(crops, eggs, new ItemStack(Items.DIRT)),
 			"a non-egg, non-crop item must not resolve as a crop");
+	}
+
+	@Test
+	void spawnEggResolvesToAConcreteCropWithTheRecipeGrowTime() {
+		// The client tooltip (Task B5) resolves the hovered seed through the SAME helper the menu/BE use,
+		// so a spawn egg must yield a concrete CropRecipe (grow_time 6000) whose grow-time/yield lines the
+		// tooltip can then render — not null (which would skip the crop tooltip branch, the reported bug).
+		final RecipeLookupCache<CropRecipe> crops = RecipeLookupCache.build(List.of());
+		final RecipeLookupCache<SpawnEggCropRecipe> eggs = RecipeLookupCache.build(List.of(spawnEggRecipe()));
+
+		final CropRecipe resolved = AbstractPotMenu.resolveCrop(crops, eggs, new ItemStack(Items.ZOMBIE_SPAWN_EGG));
+		assertNotNull(resolved, "a spawn egg must resolve to a concrete crop so its tooltip rates show");
+		assertEquals(6000, resolved.growTime(), "the derived crop carries the recipe's grow_time");
+
+		assertNull(AbstractPotMenu.resolveCrop(crops, eggs, new ItemStack(Items.DIRT)),
+			"a non-egg, non-crop item resolves to no crop");
 	}
 
 	@Test

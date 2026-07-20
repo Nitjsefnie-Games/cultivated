@@ -15,6 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Phase B §B.7 — shared base for the botany pot menus. Wraps the pot's 15-slot {@link Container}
@@ -167,11 +168,30 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 		final RecipeLookupCache<CropRecipe> crops, final RecipeLookupCache<SpawnEggCropRecipe> spawnEggCrops,
 		final ItemStack stack
 	) {
+		return resolveCrop(crops, spawnEggCrops, stack) != null;
+	}
+
+	/**
+	 * The concrete {@link CropRecipe} a seed stack resolves to (or {@code null}), mirroring {@code
+	 * BotanyPotBlockEntity#computeCrop}: the normal crop cache first, else — the generic growable-mob
+	 * mechanism — the spawn-egg cache {@linkplain SpawnEggCropRecipe#resolveFor derived} into a per-egg
+	 * crop from the stack's own entity type. Shared with the client tooltip (Task B5) so a hovered spawn
+	 * egg surfaces the same grow-time/yield lines as any crop. Callers pass the {@code CROP_OVERRIDE}
+	 * component first; this covers only the cache paths.
+	 */
+	public static @Nullable CropRecipe resolveCrop(
+		final RecipeLookupCache<CropRecipe> crops, final RecipeLookupCache<SpawnEggCropRecipe> spawnEggCrops,
+		final ItemStack stack
+	) {
+		if (stack.isEmpty()) {
+			return null;
+		}
 		final SimplePotContext context = SimplePotContext.ofSeed(stack);
-		if (crops.lookup(stack, context) != null) {
-			return true;
+		final CropRecipe crop = crops.lookup(stack, context);
+		if (crop != null) {
+			return crop;
 		}
 		final SpawnEggCropRecipe eggCrop = spawnEggCrops.lookup(stack, context);
-		return eggCrop != null && eggCrop.resolveFor(stack) != null;
+		return eggCrop != null ? eggCrop.resolveFor(stack) : null;
 	}
 }
