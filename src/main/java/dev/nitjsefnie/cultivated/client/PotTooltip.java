@@ -16,6 +16,7 @@ import dev.nitjsefnie.cultivated.registry.ModAttributes;
 import dev.nitjsefnie.cultivated.registry.ModComponents;
 import dev.nitjsefnie.cultivated.registry.ModTags;
 import dev.nitjsefnie.cultivated.util.MathHelper;
+import dev.nitjsefnie.cultivated.util.TickAccumulator;
 import dev.nitjsefnie.cultivated.util.ToolAttributes;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,6 +62,8 @@ public final class PotTooltip {
 
 		final Minecraft minecraft = Minecraft.getInstance();
 		final Level level = minecraft.level;
+		// Growth tracks game ticks, so real time to mature = requiredGrowthTicks / current tick rate.
+		final float tickRate = level != null ? level.tickRateManager().tickrate() : TickAccumulator.NORMAL_TICK_RATE;
 
 		// §A.11: an override component short-circuits to its own embedded recipe; else the client cache.
 		CropRecipe crop = stack.get(ModComponents.CROP_OVERRIDE);
@@ -86,10 +89,10 @@ public final class PotTooltip {
 		final List<Component> extra = new ArrayList<>();
 		if (seedSlot && crop != null) {
 			// The crop hovered as the planted seed: the full effective, live-pot breakdown.
-			appendPlantedCrop(extra, crop, pot, level, menu);
+			appendPlantedCrop(extra, crop, pot, level, menu, tickRate);
 		} else {
 			if (crop != null) {
-				appendCropElsewhere(extra, crop);
+				appendCropElsewhere(extra, crop, tickRate);
 			}
 			if (soil != null) {
 				appendSoil(extra, soil);
@@ -113,7 +116,7 @@ public final class PotTooltip {
 
 	private static void appendPlantedCrop(
 		final List<Component> lines, final CropRecipe crop, final @Nullable BotanyPotBlockEntity pot,
-		final @Nullable Level level, final AbstractPotMenu menu
+		final @Nullable Level level, final AbstractPotMenu menu, final float tickRate
 	) {
 		final int required;
 		final double potYield;
@@ -134,11 +137,9 @@ public final class PotTooltip {
 			toolYield = 0.0;
 			acceptsSoil = true;
 		}
-		final float tickRate = level != null ? level.tickRateManager().tickrate() : 20.0f;
-
 		lines.add(header("Planted crop"));
 		lines.add(plainLine("Grow time",
-			PotTooltipFormatting.formatDuration(required)
+			PotTooltipFormatting.formatDuration(required, tickRate)
 				+ " (" + PotTooltipFormatting.effectiveGameTicks(required, tickRate) + " ticks)"));
 
 		// Pot yield modifier is the live pot's additive tier output (§D); 0 for base pots.
@@ -163,9 +164,9 @@ public final class PotTooltip {
 		}
 	}
 
-	private static void appendCropElsewhere(final List<Component> lines, final CropRecipe crop) {
+	private static void appendCropElsewhere(final List<Component> lines, final CropRecipe crop, final float tickRate) {
 		lines.add(header("Crop"));
-		lines.add(plainLine("Base grow time", PotTooltipFormatting.formatDuration(crop.growTime())));
+		lines.add(plainLine("Base grow time", PotTooltipFormatting.formatDuration(crop.growTime(), tickRate)));
 		lines.add(plainLine("Base yield", PotTooltipFormatting.percent(crop.yield())));
 		lines.add(plainLine("Yield scale", PotTooltipFormatting.percent(crop.yieldScale())));
 	}

@@ -82,42 +82,50 @@ class PotTooltipFormattingTest {
 		assertEquals(1.0, b.total(), EPS);
 	}
 
-	// ---- tick-rate-aware grow time ----
+	// ---- tick-rate-aware grow time (growth tracks game ticks; time = required / rate) ----
 
 	@Test
-	void effectiveGameTicksEqualsRequiredAtNormalRate() {
+	void effectiveGameTicksIsTheRequiredConstantRegardlessOfRate() {
+		// Growth matures after exactly requiredGrowthTicks game ticks — the tick count never scales.
 		assertEquals(1500, PotTooltipFormatting.effectiveGameTicks(1500, 20.0f));
-	}
-
-	@Test
-	void effectiveGameTicksScalesWithTickRate() {
-		// Half rate -> half as many (longer) game ticks; double rate -> twice as many.
-		assertEquals(750, PotTooltipFormatting.effectiveGameTicks(1500, 10.0f));
-		assertEquals(3000, PotTooltipFormatting.effectiveGameTicks(1500, 40.0f));
-	}
-
-	@Test
-	void effectiveGameTicksTreatsNonPositiveRateAsNormal() {
+		assertEquals(1500, PotTooltipFormatting.effectiveGameTicks(1500, 10.0f));
+		assertEquals(1500, PotTooltipFormatting.effectiveGameTicks(1500, 100.0f));
 		assertEquals(1500, PotTooltipFormatting.effectiveGameTicks(1500, 0.0f));
 	}
 
 	@Test
-	void effectiveSecondsIsRateIndependentByNormalisation() {
-		assertEquals(75.0, PotTooltipFormatting.effectiveSeconds(1500), EPS);
-		assertEquals(5.0, PotTooltipFormatting.effectiveSeconds(100), EPS);
+	void effectiveSecondsIsRequiredDividedByTickRate() {
+		// required / rate: faster tick rate -> shorter wall-clock time.
+		assertEquals(75.0, PotTooltipFormatting.effectiveSeconds(1500, 20.0f), EPS);
+		assertEquals(60.0, PotTooltipFormatting.effectiveSeconds(1200, 20.0f), EPS);
+		assertEquals(12.0, PotTooltipFormatting.effectiveSeconds(1200, 100.0f), EPS);
+		assertEquals(150.0, PotTooltipFormatting.effectiveSeconds(1500, 10.0f), EPS);
 	}
 
 	@Test
-	void formatDurationRendersMinutesAndSeconds() {
-		assertEquals("1m", PotTooltipFormatting.formatDuration(1200));       // 60s
-		assertEquals("1m 15s", PotTooltipFormatting.formatDuration(1500));   // 75s
-		assertEquals("2m 30s", PotTooltipFormatting.formatDuration(3000));   // 150s
+	void effectiveSecondsTreatsNonPositiveRateAsNormal() {
+		assertEquals(75.0, PotTooltipFormatting.effectiveSeconds(1500, 0.0f), EPS);
+		assertEquals(75.0, PotTooltipFormatting.effectiveSeconds(1500, -5.0f), EPS);
+	}
+
+	@Test
+	void formatDurationRendersMinutesAndSecondsAtNormalRate() {
+		assertEquals("1m", PotTooltipFormatting.formatDuration(1200, 20.0f));       // 60s
+		assertEquals("1m 15s", PotTooltipFormatting.formatDuration(1500, 20.0f));   // 75s
+		assertEquals("2m 30s", PotTooltipFormatting.formatDuration(3000, 20.0f));   // 150s
+	}
+
+	@Test
+	void formatDurationShrinksAtHigherTickRate() {
+		// required=1200 -> 60s at rate 20, 12s at rate 100.
+		assertEquals("1m", PotTooltipFormatting.formatDuration(1200, 20.0f));
+		assertEquals("12s", PotTooltipFormatting.formatDuration(1200, 100.0f));
 	}
 
 	@Test
 	void formatDurationRendersSubMinuteSeconds() {
-		assertEquals("5s", PotTooltipFormatting.formatDuration(100));   // 5s
-		assertEquals("4.5s", PotTooltipFormatting.formatDuration(90));  // 4.5s
+		assertEquals("5s", PotTooltipFormatting.formatDuration(100, 20.0f));   // 5s
+		assertEquals("4.5s", PotTooltipFormatting.formatDuration(90, 20.0f));  // 4.5s
 	}
 
 	// ---- wrong-soil / wrong-pot predicates ----

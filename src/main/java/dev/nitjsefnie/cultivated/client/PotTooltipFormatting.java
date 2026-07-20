@@ -8,8 +8,9 @@ import dev.nitjsefnie.cultivated.util.TickAccumulator;
  * factored out of {@link PotTooltip} so it can be unit-tested without a game runtime. Covers the
  * yield-breakdown decomposition (base/soil/pot/tool, each already scaled by {@code yield_scale} the
  * same way {@link dev.nitjsefnie.cultivated.data.formula.YieldFormula} does), the tick-rate-aware
- * grow-time formatting (the growth accumulator normalises against a 20 t/s baseline, §G #4), the
- * +/− buff/nerf sign decision, and the wrong-soil / wrong-pot predicates (§B.8).
+ * grow-time formatting (growth tracks game ticks directly, so the crop matures after exactly
+ * {@code requiredGrowthTicks} game ticks and wall-clock time is {@code requiredGrowthTicks / tickRate}),
+ * the +/− buff/nerf sign decision, and the wrong-soil / wrong-pot predicates (§B.8).
  */
 public final class PotTooltipFormatting {
 	private PotTooltipFormatting() {
@@ -75,27 +76,34 @@ public final class PotTooltipFormatting {
 	}
 
 	/**
-	 * The number of game ticks the crop will actually take at the world's current tick rate. Growth
-	 * advances the accumulator by {@code 20/rate} per game tick, so reaching {@code required}
-	 * accumulator units takes {@code required * rate / 20} game ticks (fewer, longer ticks at a low
-	 * rate; more, shorter ticks at a high rate).
+	 * The number of game ticks the crop will take to mature. Growth now advances one tick of progress
+	 * per game tick, so the crop matures after exactly {@code requiredGrowthTicks} game ticks — the tick
+	 * count is a constant and does NOT scale with the world's tick rate (the {@code tickRate} argument is
+	 * accepted for call-site symmetry with {@link #effectiveSeconds} but deliberately does not scale the
+	 * result; that rate-scaling was the pre-tick-tracking bug).
 	 */
 	public static int effectiveGameTicks(final int requiredGrowthTicks, final float tickRate) {
-		final float rate = tickRate <= 0.0f ? TickAccumulator.NORMAL_TICK_RATE : tickRate;
-		return Math.max(0, Math.round(requiredGrowthTicks * rate / TickAccumulator.NORMAL_TICK_RATE));
+		return Math.max(0, requiredGrowthTicks);
 	}
 
 	/**
-	 * The real-world seconds the crop will take. Because the accumulator is normalised to the 20 t/s
-	 * baseline, wall-clock time is {@code required / 20} regardless of the configured tick rate.
+	 * The real-world seconds the crop will take to mature at the world's current tick rate. Because
+	 * growth tracks game ticks directly, the crop matures after exactly {@code requiredGrowthTicks} game
+	 * ticks, so wall-clock time is {@code requiredGrowthTicks / tickRate} — it shrinks as the tick rate
+	 * rises (e.g. {@code required=1200} is 60s at 20 t/s but 12s at 100 t/s). A non-positive rate is
+	 * treated as the {@link TickAccumulator#NORMAL_TICK_RATE 20 t/s} baseline.
 	 */
-	public static double effectiveSeconds(final int requiredGrowthTicks) {
-		return requiredGrowthTicks / (double) TickAccumulator.NORMAL_TICK_RATE;
+	public static double effectiveSeconds(final int requiredGrowthTicks, final float tickRate) {
+		final float rate = tickRate <= 0.0f ? TickAccumulator.NORMAL_TICK_RATE : tickRate;
+		return requiredGrowthTicks / (double) rate;
 	}
 
-	/** Human-readable duration for a required-ticks count, e.g. {@code "1m 15s"} or {@code "4.5s"}. */
-	public static String formatDuration(final int requiredGrowthTicks) {
-		final double totalSeconds = effectiveSeconds(requiredGrowthTicks);
+	/**
+	 * Human-readable duration for a required-ticks count at the world's current tick rate, e.g.
+	 * {@code "1m 15s"} or {@code "4.5s"}.
+	 */
+	public static String formatDuration(final int requiredGrowthTicks, final float tickRate) {
+		final double totalSeconds = effectiveSeconds(requiredGrowthTicks, tickRate);
 		if (totalSeconds >= 60.0) {
 			int minutes = (int) (totalSeconds / 60.0);
 			int seconds = (int) Math.round(totalSeconds - minutes * 60.0);
