@@ -1,6 +1,7 @@
 package dev.nitjsefnie.cultivated;
 
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
+import dev.nitjsefnie.cultivated.config.CultivatedConfigFile;
 import dev.nitjsefnie.cultivated.registry.CultivatedRegistries;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -19,6 +20,10 @@ public class Cultivated implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		// Load config first so registration and load conditions see the on-disk values, and write
+		// the commented defaults file if none exists yet.
+		CultivatedConfigFile.loadOrCreate();
+
 		CultivatedRegistries.register();
 
 		// Rebuild the server-side recipe lookup caches whenever the server starts or datapacks

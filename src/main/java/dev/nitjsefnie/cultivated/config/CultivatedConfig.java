@@ -1,6 +1,10 @@
 package dev.nitjsefnie.cultivated.config;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
 import java.util.Map;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Phase A/F — minimal gameplay config holder. The full annotation-driven, commented-JSON loader
@@ -14,6 +18,16 @@ public final class CultivatedConfig {
 	public static float globalGrowthModifier = 1.0f;
 	public static boolean damageHarvestTool = true;
 	public static float efficiencyGrowthModifier = 0.05f;
+
+	/**
+	 * Raw JSON for the fallback harvest stack (§F.1) — the stack a pot yields when a matched crop
+	 * recipe defines no drops. Stored as JSON and decoded lazily by {@link #defaultHarvestStack()}
+	 * rather than eagerly at load time: item components are not bound to their registry holders until
+	 * datapack/registry load, which happens well after the config is read in {@code onInitialize}, so
+	 * decoding a non-empty stack any earlier throws. The empty object ({@code {}}) means "no fallback".
+	 */
+	private static JsonElement defaultHarvestStackJson = new JsonObject();
+	private static ItemStack defaultHarvestStackResolved;
 
 	// Recipe/crafting gates, addressed by name via the cultivated:config load condition (§A.9).
 	public static boolean canCraftBasicPots = true;
@@ -48,6 +62,38 @@ public final class CultivatedConfig {
 	public static boolean renderCrop = true;
 
 	private CultivatedConfig() {
+	}
+
+	/**
+	 * The configured fallback harvest stack, decoded from JSON on first use. Returns the empty stack
+	 * when unset or when the JSON is not (yet) decodable; a successful decode is cached. A failed
+	 * decode is not cached, so a stack referencing an item whose components are not bound yet resolves
+	 * correctly once binding has happened.
+	 */
+	public static ItemStack defaultHarvestStack() {
+		if (defaultHarvestStackResolved != null) {
+			return defaultHarvestStackResolved;
+		}
+		final ItemStack decoded = ItemStack.OPTIONAL_CODEC
+			.parse(JsonOps.INSTANCE, defaultHarvestStackJson)
+			.result()
+			.orElse(null);
+		if (decoded != null) {
+			defaultHarvestStackResolved = decoded;
+			return decoded;
+		}
+		return ItemStack.EMPTY;
+	}
+
+	/** The raw JSON the loader persists for {@code default_harvest_stack}. */
+	static JsonElement defaultHarvestStackJson() {
+		return defaultHarvestStackJson;
+	}
+
+	/** Replace the raw {@code default_harvest_stack} JSON, invalidating the decoded cache. */
+	static void setDefaultHarvestStackJson(final JsonElement json) {
+		defaultHarvestStackJson = json;
+		defaultHarvestStackResolved = null;
 	}
 
 	/**
