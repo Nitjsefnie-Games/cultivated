@@ -91,7 +91,7 @@ public sealed interface DropProvider {
 
 	/**
 	 * A tolerant {@code block_state} reference that falls back to inert air ONLY when the referenced
-	 * block id is absent from the registry (so a guarded cross-mod drop still parses and is dropped by
+	 * block id is absent from the registry (so a guarded drop for a block from another mod still parses and is dropped by
 	 * its load condition), while a genuinely malformed block-state (bad property / bad format) still
 	 * surfaces a decode error. {@link BlockState#CODEC} dispatches on the {@code "Name"} field via
 	 * {@code BLOCK.byNameCodec()}; we re-read that field as an {@link Identifier} and treat it as

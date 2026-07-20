@@ -3,7 +3,7 @@
 	"id": "cultivated",
 	"version": "${version}",
 	"name": "Cultivated",
-	"description": "Grow crops, trees, and ores in pots — a clean-room, Fabric-only reimplementation of the BotanyPots concept for Minecraft 26.2, with tiers built in.",
+	"description": "Grow crops, trees, ores, and even mobs in decorative pots — no farmland, water, or light needed. Botany pots with tiers, upgrades, and hopper automation for Minecraft 26.2.",
 	"authors": [
 		"Cultivated contributors"
 	],

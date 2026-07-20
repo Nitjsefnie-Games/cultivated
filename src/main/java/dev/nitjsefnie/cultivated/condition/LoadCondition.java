@@ -35,7 +35,7 @@ public sealed interface LoadCondition {
 
 	/**
 	 * The legacy Bookshelf field key ({@code bookshelf:load_conditions}), accepted for drop-in
-	 * compatibility with imported BotanyPots datapacks (§A.9).
+	 * compatibility with imported legacy datapacks (§A.9).
 	 */
 	String LEGACY_CONDITIONS_KEY = "bookshelf:load_conditions";
 

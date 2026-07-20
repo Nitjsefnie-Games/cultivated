@@ -182,14 +182,37 @@ def gen_mineable_pickaxe_tag() -> list[str]:
     return ids
 
 
+# Hand-authored lang keys the generator must preserve on every re-run. These name things that are
+# not enumerated by the tier/material/pot-type loops below (the shared container title, the upgrade
+# items, tier tooltips). Keeping them here makes gen_lang() idempotent: regenerating en_us.json can
+# never silently drop them. Any spawner-soil / spawn-egg display names would be added here too.
+LANG_CONTAINER = {
+    f"container.{MODID}.botany_pot": "Botany Pot",
+}
+LANG_ITEMS = {
+    f"item.{MODID}.elite_upgrade": "Elite Pot Upgrade",
+    f"item.{MODID}.ultra_upgrade": "Ultra Pot Upgrade",
+    f"item.{MODID}.mega_upgrade": "Mega Pot Upgrade",
+    f"item.{MODID}.hopper_upgrade": "Hopper Pot Upgrade",
+}
+LANG_TOOLTIPS = {
+    f"tooltip.{MODID}.tier.hold_shift": "Hold Shift for tier bonuses",
+    f"tooltip.{MODID}.tier.speed": "Growth Speed: %s",
+    f"tooltip.{MODID}.tier.output": "Yield Bonus: %s",
+}
+
+
 def gen_lang() -> dict:
     lang: dict[str, str] = {}
     lang[f"itemGroup.{MODID}.botany_pots"] = "Botany Pots"
+    lang.update(LANG_CONTAINER)
     for tier in TIERS:
         for material in MATERIALS:
             for pot_type in POT_TYPES:
                 name = variant_name(material, pot_type, tier)
                 lang[f"block.{MODID}.{name}"] = title_case(name)
+    lang.update(LANG_ITEMS)
+    lang.update(LANG_TOOLTIPS)
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), lang)
     return lang
 

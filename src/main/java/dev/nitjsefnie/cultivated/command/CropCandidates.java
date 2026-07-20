@@ -27,7 +27,7 @@ public final class CropCandidates {
 
 	/**
 	 * True if {@code block} belongs to a growable family a botany pot could host. Saplings are gated
-	 * behind {@code includeSaplings} because the tree crops are typically curated with bespoke loot
+	 * behind {@code includeSaplings} because the tree crops typically ship with bespoke loot
 	 * tables rather than auto-derived, so the default scan omits them.
 	 */
 	public static boolean couldBeCrop(final Block block, final boolean includeSaplings) {

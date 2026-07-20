@@ -213,7 +213,7 @@ public final class LiveContext implements PotContext {
 	}
 
 	/**
-	 * Yield a finalized mob's worn gear on the vanilla small per-piece drop chance — a clean-room mirror of
+	 * Yield a finalized mob's worn gear on the vanilla small per-piece drop chance — a mirror of
 	 * {@code Mob.dropCustomDeathLoot}'s equipment loop, driven entirely by the mob's OWN {@code DropChances}
 	 * (set by its own finalizeSpawn), so an armored zombie has the same small chance to drop its armor and
 	 * this generalizes to any modded mob without hardcoding a single item id.

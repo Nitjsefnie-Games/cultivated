@@ -51,7 +51,7 @@ public final class BlockDerivedRecipes {
 
 	/**
 	 * A tolerant {@code block} reference (§A.9 / C1): a missing id resolves to {@link Optional#empty()}
-	 * rather than raising a decode error, so a guarded cross-mod file whose block is absent still
+	 * rather than raising a decode error, so a guarded file for a block from another mod that is absent still
 	 * parses. The recipe is then dropped at cache-build time by its failing load condition; a file
 	 * with no gating condition is reported as a genuine error (see {@code resolve}).
 	 */
@@ -160,8 +160,8 @@ public final class BlockDerivedRecipes {
 
 	/**
 	 * Decide how a derived recipe whose {@code block} is absent resolves (§A.9). If a load condition
-	 * gates the file (so {@link LoadCondition#testAll} is already false), it is a guarded cross-mod
-	 * file: succeed with an inert placeholder that carries the failing conditions, so the recipe is
+	 * gates the file (so {@link LoadCondition#testAll} is already false), it is a guarded file for
+	 * a block from another mod: succeed with an inert placeholder that carries the failing conditions, so the recipe is
 	 * dropped at cache-build with no error. Otherwise the missing block is a genuine datapack error
 	 * and is reported as such.
 	 */
