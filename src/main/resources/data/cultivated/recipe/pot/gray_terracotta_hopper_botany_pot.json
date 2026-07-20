@@ -1,0 +1,18 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"ingredients": [
+		"minecraft:hopper",
+		"cultivated:gray_terracotta_botany_pot"
+	],
+	"result": {
+		"id": "cultivated:gray_terracotta_hopper_botany_pot",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_hopper_pots"
+		}
+	]
+}

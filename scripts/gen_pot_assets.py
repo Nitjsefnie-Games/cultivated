@@ -26,7 +26,11 @@ MODID = "cultivated"
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 ASSETS = os.path.join(ROOT, "src", "main", "resources", "assets", MODID)
-LOOT_BLOCKS = os.path.join(ROOT, "src", "main", "resources", "data", MODID, "loot_table", "blocks")
+DATA = os.path.join(ROOT, "src", "main", "resources", "data", MODID)
+LOOT_BLOCKS = os.path.join(DATA, "loot_table", "blocks")
+# Base-pot crafting recipes (config-gated). Only BASE pots are craftable; tiered pots come from the
+# upgrade items. Kept in a subdir so the ~244 generated files do not clutter recipe/.
+RECIPES_POT = os.path.join(DATA, "recipe", "pot")
 # Fabric merges this into the vanilla minecraft:mineable/pickaxe block tag, so a pickaxe is the
 # effective/fast tool and (with .requiresCorrectToolForDrops()) is required for pot drops.
 MINEABLE_PICKAXE_TAG = os.path.join(
@@ -200,6 +204,17 @@ LANG_TOOLTIPS = {
     f"tooltip.{MODID}.tier.speed": "Growth Speed: %s",
     f"tooltip.{MODID}.tier.output": "Yield Bonus: %s",
 }
+# Recipe-viewer (REI/EMI) category + tooltip strings — hand-authored, not enumerated by the loops,
+# so they are preserved here to keep gen_lang() idempotent (a re-run must not drop them).
+LANG_VIEWER = {
+    f"category.{MODID}.crop": "Growing",
+    f"category.{MODID}.interaction": "Pot Interaction",
+    f"gui.{MODID}.viewer.grow_time": "Grow time: %s",
+    f"gui.{MODID}.viewer.spawn_egg_drops": "Drops the planted mob's loot",
+    f"gui.{MODID}.viewer.consumes_held": "Consumes the held item",
+    f"gui.{MODID}.viewer.damages_held": "Damages the held item",
+    f"gui.{MODID}.viewer.keeps_held": "Keeps the held item",
+}
 
 
 def gen_lang() -> dict:
@@ -213,8 +228,86 @@ def gen_lang() -> dict:
                 lang[f"block.{MODID}.{name}"] = title_case(name)
     lang.update(LANG_ITEMS)
     lang.update(LANG_TOOLTIPS)
+    lang.update(LANG_VIEWER)
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), lang)
     return lang
+
+
+# --- base-pot crafting recipes (config-gated, vanilla crafting_shaped/shapeless) -------------------
+# Only BASE pots are craftable; tiered pots are produced by applying the upgrade items in-world, so
+# no tiered crafting recipes are generated. Ingredient is always the vanilla block item
+# minecraft:<material> (verified to exist for all 61 materials in MC 26.2). The three config gates
+# are resolved by name through the cultivated:config load condition; the names below are the exact
+# BOOLEAN_PROPERTIES keys registered in CultivatedConfig.
+
+GATE_BASIC = "can_craft_basic_pots"
+GATE_HOPPER = "can_craft_hopper_pots"
+GATE_WAXED = "can_wax_pots"
+
+
+def _config_conditions(gate: str) -> list:
+    return [{"condition": f"{MODID}:config", "property": gate}]
+
+
+def _result(name: str) -> dict:
+    return {"id": f"{MODID}:{name}", "count": 1}
+
+
+def gen_pot_recipes(material: str) -> list[str]:
+    """Emit the base-pot crafting recipes for one material; return the recipe ids written."""
+    mat_item = f"minecraft:{material}"
+    basic_id = basic_name(material)
+    hopper_id = variant_name(material, "hopper")
+    waxed_id = variant_name(material, "waxed")
+    written: list[str] = []
+
+    # Basic: shaped ring of material around a flower pot.
+    basic = {
+        "type": "minecraft:crafting_shaped",
+        "category": "misc",
+        "key": {"M": mat_item, "P": "minecraft:flower_pot"},
+        "pattern": ["M M", "MPM", " M "],
+        "result": _result(basic_id),
+        "fabric:load_conditions": _config_conditions(GATE_BASIC),
+    }
+    write_json(os.path.join(RECIPES_POT, f"{basic_id}.json"), basic)
+    written.append(f"{MODID}:pot/{basic_id}")
+
+    # Hopper (a): shapeless hopper + basic pot.
+    hopper_shapeless = {
+        "type": "minecraft:crafting_shapeless",
+        "category": "misc",
+        "ingredients": ["minecraft:hopper", f"{MODID}:{basic_id}"],
+        "result": _result(hopper_id),
+        "fabric:load_conditions": _config_conditions(GATE_HOPPER),
+    }
+    write_json(os.path.join(RECIPES_POT, f"{hopper_id}.json"), hopper_shapeless)
+    written.append(f"{MODID}:pot/{hopper_id}")
+
+    # Hopper (b): "quick" shaped variant with a hopper on top of the material ring.
+    hopper_quick = {
+        "type": "minecraft:crafting_shaped",
+        "category": "misc",
+        "key": {"M": mat_item, "H": "minecraft:hopper", "P": "minecraft:flower_pot"},
+        "pattern": ["MHM", "MPM", " M "],
+        "result": _result(hopper_id),
+        "fabric:load_conditions": _config_conditions(GATE_HOPPER),
+    }
+    write_json(os.path.join(RECIPES_POT, f"{hopper_id}_quick.json"), hopper_quick)
+    written.append(f"{MODID}:pot/{hopper_id}_quick")
+
+    # Waxed: shapeless honeycomb + basic pot.
+    waxed_shapeless = {
+        "type": "minecraft:crafting_shapeless",
+        "category": "misc",
+        "ingredients": ["minecraft:honeycomb", f"{MODID}:{basic_id}"],
+        "result": _result(waxed_id),
+        "fabric:load_conditions": _config_conditions(GATE_WAXED),
+    }
+    write_json(os.path.join(RECIPES_POT, f"{waxed_id}.json"), waxed_shapeless)
+    written.append(f"{MODID}:pot/{waxed_id}")
+
+    return written
 
 
 # --- GUI textures (functional placeholders via Pillow) ---------------------------------------------
@@ -314,6 +407,10 @@ def main() -> None:
                 gen_item_model(material, pot_type, tier)
                 gen_loot_table(material, pot_type, tier)
 
+    recipes: list[str] = []
+    for material in MATERIALS:
+        recipes.extend(gen_pot_recipes(material))
+
     lang = gen_lang()
     gui = gen_gui_textures()
     mineable = gen_mineable_pickaxe_tag()
@@ -324,6 +421,7 @@ def main() -> None:
     print(f"materials={len(MATERIALS)} tiers={len(TIERS)} (base + {len(TIERS) - 1}) variants={n} (base {per_tier} + tiered {tiered})")
     print(f"blockstates={n} block_models={n} item_models={n} loot_tables={n}")
     print(f"mineable/pickaxe tag ids={len(mineable)}")
+    print(f"pot_crafting_recipes={len(recipes)} (basic {len(MATERIALS)} + hopper {2 * len(MATERIALS)} + waxed {len(MATERIALS)})")
     print(f"lang_entries={len(lang)} (1 item group + {n} blocks)")
     print(f"gui_textures={len(gui)}: " + ", ".join(os.path.relpath(p, ROOT) for p in gui))
 

@@ -1,0 +1,24 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"M": "minecraft:red_terracotta",
+		"H": "minecraft:hopper",
+		"P": "minecraft:flower_pot"
+	},
+	"pattern": [
+		"MHM",
+		"MPM",
+		" M "
+	],
+	"result": {
+		"id": "cultivated:red_terracotta_hopper_botany_pot",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_hopper_pots"
+		}
+	]
+}

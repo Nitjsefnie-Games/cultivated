@@ -1,0 +1,23 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"M": "minecraft:blue_terracotta",
+		"P": "minecraft:flower_pot"
+	},
+	"pattern": [
+		"M M",
+		"MPM",
+		" M "
+	],
+	"result": {
+		"id": "cultivated:blue_terracotta_botany_pot",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_basic_pots"
+		}
+	]
+}

@@ -1,0 +1,18 @@
+{
+	"type": "minecraft:crafting_shapeless",
+	"category": "misc",
+	"ingredients": [
+		"minecraft:hopper",
+		"cultivated:blue_concrete_botany_pot"
+	],
+	"result": {
+		"id": "cultivated:blue_concrete_hopper_botany_pot",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_hopper_pots"
+		}
+	]
+}

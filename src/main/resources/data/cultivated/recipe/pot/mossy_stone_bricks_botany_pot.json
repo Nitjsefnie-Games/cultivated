@@ -1,0 +1,23 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"M": "minecraft:mossy_stone_bricks",
+		"P": "minecraft:flower_pot"
+	},
+	"pattern": [
+		"M M",
+		"MPM",
+		" M "
+	],
+	"result": {
+		"id": "cultivated:mossy_stone_bricks_botany_pot",
+		"count": 1
+	},
+	"fabric:load_conditions": [
+		{
+			"condition": "cultivated:config",
+			"property": "can_craft_basic_pots"
+		}
+	]
+}
