@@ -26,6 +26,7 @@ MODID = "cultivated"
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 ASSETS = os.path.join(ROOT, "src", "main", "resources", "assets", MODID)
+LOOT_BLOCKS = os.path.join(ROOT, "src", "main", "resources", "data", MODID, "loot_table", "blocks")
 
 # --- material list: mirror of PotMaterials.ALL (registration order) ---------------------------------
 DYE_COLORS = [
@@ -54,17 +55,28 @@ MATERIALS = build_materials()
 # The three pot variants. Waxed reuses the basic model via a thin parent-only model (SPEC appendix).
 POT_TYPES = ["basic", "hopper", "waxed"]
 
+# Phase D §D — upgrade tiers. "" is the implicit BASE tier (existing Phase B ids, no prefix); the three
+# tiers prefix every id with elite_/ultra_/mega_. This mirrors dev.nitjsefnie.cultivated.block.Tier.
+TIERS = ["", "elite", "ultra", "mega"]
 
-def basic_name(material: str) -> str:
-    return f"{material}_botany_pot"
+
+def prefixed(tier: str, name: str) -> str:
+    """Prefix a base id with a tier (elite/ultra/mega), or return it unchanged for the BASE tier."""
+    return f"{tier}_{name}" if tier else name
 
 
-def variant_name(material: str, pot_type: str) -> str:
+def basic_name(material: str, tier: str = "") -> str:
+    return prefixed(tier, f"{material}_botany_pot")
+
+
+def variant_name(material: str, pot_type: str, tier: str = "") -> str:
     if pot_type == "basic":
-        return f"{material}_botany_pot"
-    if pot_type == "hopper":
-        return f"{material}_hopper_botany_pot"
-    return f"{material}_waxed_botany_pot"
+        base = f"{material}_botany_pot"
+    elif pot_type == "hopper":
+        base = f"{material}_hopper_botany_pot"
+    else:
+        base = f"{material}_waxed_botany_pot"
+    return prefixed(tier, base)
 
 
 def write_json(path: str, obj: dict) -> None:
@@ -78,22 +90,22 @@ def title_case(name: str) -> str:
     return " ".join(word.capitalize() for word in name.split("_"))
 
 
-def gen_blockstate(material: str, pot_type: str) -> None:
-    name = variant_name(material, pot_type)
+def gen_blockstate(material: str, pot_type: str, tier: str = "") -> None:
+    name = variant_name(material, pot_type, tier)
     # Single default variant (SPEC: blockstate = single default variant; facing/level/waterlogged
     # do not change the rendered model).
     obj = {"variants": {"": {"model": f"{MODID}:block/{name}"}}}
     write_json(os.path.join(ASSETS, "blockstates", f"{name}.json"), obj)
 
 
-def gen_block_model(material: str, pot_type: str) -> None:
-    name = variant_name(material, pot_type)
+def gen_block_model(material: str, pot_type: str, tier: str = "") -> None:
+    name = variant_name(material, pot_type, tier)
     side_texture = f"minecraft:block/{material}"
     if pot_type == "waxed":
-        # Reuse the basic pot's geometry + textures by parenting it, but declare render_type
+        # Reuse the tier's basic pot geometry + textures by parenting it, but declare render_type
         # explicitly (do not rely on it being inherited through the parent chain).
         obj = {
-            "parent": f"{MODID}:block/{basic_name(material)}",
+            "parent": f"{MODID}:block/{basic_name(material, tier)}",
             "render_type": "minecraft:cutout",
         }
     elif pot_type == "hopper":
@@ -117,19 +129,46 @@ def gen_block_model(material: str, pot_type: str) -> None:
     write_json(os.path.join(ASSETS, "models", "block", f"{name}.json"), obj)
 
 
-def gen_item_model(material: str, pot_type: str) -> None:
-    name = variant_name(material, pot_type)
+def gen_item_model(material: str, pot_type: str, tier: str = "") -> None:
+    name = variant_name(material, pot_type, tier)
     obj = {"model": {"type": "minecraft:model", "model": f"{MODID}:block/{name}"}}
     write_json(os.path.join(ASSETS, "items", f"{name}.json"), obj)
+
+
+def gen_loot_table(material: str, pot_type: str, tier: str = "") -> None:
+    # Self-drop block loot table (survives_explosion), matching the Phase B base-pot schema exactly so
+    # regenerating the base tier is byte-identical to the committed files.
+    name = variant_name(material, pot_type, tier)
+    obj = {
+        "type": "minecraft:block",
+        "pools": [
+            {
+                "rolls": 1.0,
+                "entries": [
+                    {
+                        "type": "minecraft:item",
+                        "name": f"{MODID}:{name}",
+                    }
+                ],
+                "conditions": [
+                    {
+                        "condition": "minecraft:survives_explosion",
+                    }
+                ],
+            }
+        ],
+    }
+    write_json(os.path.join(LOOT_BLOCKS, f"{name}.json"), obj)
 
 
 def gen_lang() -> dict:
     lang: dict[str, str] = {}
     lang[f"itemGroup.{MODID}.botany_pots"] = "Botany Pots"
-    for material in MATERIALS:
-        for pot_type in POT_TYPES:
-            name = variant_name(material, pot_type)
-            lang[f"block.{MODID}.{name}"] = title_case(name)
+    for tier in TIERS:
+        for material in MATERIALS:
+            for pot_type in POT_TYPES:
+                name = variant_name(material, pot_type, tier)
+                lang[f"block.{MODID}.{name}"] = title_case(name)
     write_json(os.path.join(ASSETS, "lang", "en_us.json"), lang)
     return lang
 
@@ -223,18 +262,22 @@ def gen_gui_textures() -> list[str]:
 
 
 def main() -> None:
-    for material in MATERIALS:
-        for pot_type in POT_TYPES:
-            gen_blockstate(material, pot_type)
-            gen_block_model(material, pot_type)
-            gen_item_model(material, pot_type)
+    for tier in TIERS:
+        for material in MATERIALS:
+            for pot_type in POT_TYPES:
+                gen_blockstate(material, pot_type, tier)
+                gen_block_model(material, pot_type, tier)
+                gen_item_model(material, pot_type, tier)
+                gen_loot_table(material, pot_type, tier)
 
     lang = gen_lang()
     gui = gen_gui_textures()
 
-    n = len(MATERIALS) * len(POT_TYPES)
-    print(f"materials={len(MATERIALS)} variants={n}")
-    print(f"blockstates={n} block_models={n} item_models={n}")
+    per_tier = len(MATERIALS) * len(POT_TYPES)
+    n = per_tier * len(TIERS)
+    tiered = per_tier * (len(TIERS) - 1)
+    print(f"materials={len(MATERIALS)} tiers={len(TIERS)} (base + {len(TIERS) - 1}) variants={n} (base {per_tier} + tiered {tiered})")
+    print(f"blockstates={n} block_models={n} item_models={n} loot_tables={n}")
     print(f"lang_entries={len(lang)} (1 item group + {n} blocks)")
     print(f"gui_textures={len(gui)}: " + ", ".join(os.path.relpath(p, ROOT) for p in gui))
 

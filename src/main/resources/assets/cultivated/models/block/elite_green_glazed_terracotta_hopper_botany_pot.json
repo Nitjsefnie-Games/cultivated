@@ -1,0 +1,8 @@
+{
+	"parent": "cultivated:block/template/hopper_pot",
+	"render_type": "minecraft:cutout",
+	"textures": {
+		"material": "minecraft:block/green_glazed_terracotta",
+		"material_top": "minecraft:block/green_glazed_terracotta"
+	}
+}
