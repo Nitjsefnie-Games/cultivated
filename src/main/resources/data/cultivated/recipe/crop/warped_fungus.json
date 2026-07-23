@@ -2,5 +2,6 @@
 	"type": "cultivated:block_derived_crop",
 	"block": "minecraft:warped_fungus",
 	"grow_time": 2000,
+	"drops": [ { "type": "cultivated:loot_table", "table_id": "cultivated:tree/warped" } ],
 	"soil": { "type": "cultivated:either", "ingredients": [ "minecraft:netherrack", "minecraft:soul_soil" ] }
 }
