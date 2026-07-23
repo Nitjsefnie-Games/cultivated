@@ -12,15 +12,15 @@ import net.minecraft.world.entity.player.Inventory;
  * Phase B §B.7/§B.8 — the {@code cultivated:hopper_pot_menu}: soil (44,48), seed (44,22) and a
  * harvest-tool slot (18,35, accepting only tag {@code cultivated:harvest_items}) on the left, plus a
  * 4-wide × 3-tall grid of 12 extract-only output slots starting at (80,17) and stepping 18px, and a
- * 4×3 grid of 12 fertilizer input slots starting at (80,86) and stepping 18px, over the player
- * inventory (top at y=142 on the taller 176×224 hopper background).
+ * 4×3 grid of 12 fertilizer input slots starting at (80,74) and stepping 18px, over the player
+ * inventory (top at y=133 on the taller 176×215 hopper background).
  */
 public class HopperPotMenu extends AbstractPotMenu {
 	/**
-	 * The hopper pot player inventory's top edge: the hopper background grew to 176×224 to fit the
+	 * The hopper pot player inventory's top edge: the hopper background grew to 176×215 to fit the
 	 * fertilizer grid, so the inventory sits lower than on the basic pot ({@link #INVENTORY_TOP}).
 	 */
-	private static final int HOPPER_INVENTORY_TOP = 142;
+	private static final int HOPPER_INVENTORY_TOP = 133;
 
 	/** All 27 pot slots this menu exposes (soil, seed, tool, 12 outputs, 12 fertilizer inputs). */
 	private static final int POT_SLOTS = PotMechanics.SIZE;
