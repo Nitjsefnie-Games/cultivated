@@ -16,6 +16,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
@@ -96,8 +97,11 @@ public record SpawnEggCropRecipe(
 		// A rare (0.1%) bonus: harvest can also yield the mob's own spawn egg back, ON TOP of the death
 		// loot + equipment. Built from the planted seed directly (components bound at harvest time), so it
 		// is generic for any spawn egg — vanilla or modded.
+		// An even rarer (0.01%) bonus: the same harvest may also drop an empty mob spawner, matching the
+		// crop's soil item. Each entry is rolled independently.
 		final DropProvider eggDrop = new DropProvider.Items(List.of(
-			new DropProvider.Items.Entry(LazyItemStack.of(seedEgg.copyWithCount(1)), 0.001f)
+			new DropProvider.Items.Entry(LazyItemStack.of(seedEgg.copyWithCount(1)), 0.001f),
+			new DropProvider.Items.Entry(LazyItemStack.of(new ItemStack(Items.SPAWNER)), 0.0001f)
 		));
 
 		return new CropRecipe(
