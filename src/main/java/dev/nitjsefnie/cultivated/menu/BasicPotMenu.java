@@ -40,4 +40,9 @@ public class BasicPotMenu extends AbstractPotMenu {
 	protected boolean hasToolSlot() {
 		return false;
 	}
+
+	@Override
+	protected int inventoryTop() {
+		return INVENTORY_TOP;
+	}
 }

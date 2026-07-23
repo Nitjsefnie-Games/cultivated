@@ -24,27 +24,37 @@ public final class PotMenuRouting {
 	 * <ol>
 	 *   <li>the {@link PotMechanics#TOOL} slot, if the menu has one, the stack is a harvest tool and
 	 *       the tool slot is empty;</li>
+	 *   <li>else the fertilizer input region ({@link PotMechanics#FERTILIZER_INPUT_FIRST}..
+	 *       {@link PotMechanics#FERTILIZER_INPUT_LAST}), if the menu wires those slots and the stack
+	 *       resolves to a fertilizer;</li>
 	 *   <li>else the {@link PotMechanics#SOIL} slot, if the stack resolves to a soil;</li>
 	 *   <li>else the {@link PotMechanics#SEED} slot, if the stack resolves to a crop;</li>
 	 *   <li>else {@link #ROUTE_INVENTORY}.</li>
 	 * </ol>
 	 *
-	 * @param hasToolSlot    whether this menu exposes a tool slot (basic pots do not)
-	 * @param isHarvestTool  whether the stack is tagged {@code cultivated:harvest_items}
-	 * @param toolSlotEmpty  whether the tool slot is currently empty
-	 * @param resolvesSoil   whether the stack resolves to a soil (override component or soil cache)
-	 * @param resolvesCrop   whether the stack resolves to a crop (override component or crop cache)
-	 * @return the target container slot index, or {@link #ROUTE_INVENTORY}
+	 * @param hasToolSlot        whether this menu exposes a tool slot (basic pots do not)
+	 * @param isHarvestTool      whether the stack is tagged {@code cultivated:harvest_items}
+	 * @param toolSlotEmpty      whether the tool slot is currently empty
+	 * @param resolvesFertilizer whether the stack resolves to a fertilizer AND the menu wires the
+	 *                           fertilizer input slots (only the hopper menu does)
+	 * @param resolvesSoil       whether the stack resolves to a soil (override component or soil cache)
+	 * @param resolvesCrop       whether the stack resolves to a crop (override component or crop cache)
+	 * @return the target container slot index ({@link PotMechanics#FERTILIZER_INPUT_FIRST} stands for
+	 *         the whole fertilizer region), or {@link #ROUTE_INVENTORY}
 	 */
 	public static int routeFromInventory(
 		final boolean hasToolSlot,
 		final boolean isHarvestTool,
 		final boolean toolSlotEmpty,
+		final boolean resolvesFertilizer,
 		final boolean resolvesSoil,
 		final boolean resolvesCrop
 	) {
 		if (hasToolSlot && isHarvestTool && toolSlotEmpty) {
 			return PotMechanics.TOOL;
+		}
+		if (resolvesFertilizer) {
+			return PotMechanics.FERTILIZER_INPUT_FIRST;
 		}
 		if (resolvesSoil) {
 			return PotMechanics.SOIL;

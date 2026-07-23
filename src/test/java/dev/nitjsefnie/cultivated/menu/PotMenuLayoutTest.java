@@ -44,6 +44,38 @@ class PotMenuLayoutTest {
 	}
 
 	@Test
+	void fertilizerGridMapsRowMajorToInputSlots() {
+		assertEquals(PotMechanics.FERTILIZER_INPUT_FIRST, PotMenuLayout.fertilizerContainerSlot(0, 0)); // 15
+		assertEquals(18, PotMenuLayout.fertilizerContainerSlot(0, 3));
+		assertEquals(19, PotMenuLayout.fertilizerContainerSlot(1, 0));
+		assertEquals(PotMechanics.FERTILIZER_INPUT_LAST, PotMenuLayout.fertilizerContainerSlot(2, 3)); // 26
+	}
+
+	@Test
+	void fertilizerGridCoversAllTwelveInputSlotsExactlyOnce() {
+		final Set<Integer> seen = new HashSet<>();
+		for (int row = 0; row < PotMenuLayout.FERTILIZER_ROWS; row++) {
+			for (int column = 0; column < PotMenuLayout.FERTILIZER_COLUMNS; column++) {
+				seen.add(PotMenuLayout.fertilizerContainerSlot(row, column));
+			}
+		}
+		assertEquals(PotMechanics.FERTILIZER_INPUT_COUNT, seen.size());
+		for (int slot = PotMechanics.FERTILIZER_INPUT_FIRST; slot <= PotMechanics.FERTILIZER_INPUT_LAST; slot++) {
+			assertTrue(seen.contains(slot), "missing fertilizer input slot " + slot);
+		}
+	}
+
+	@Test
+	void fertilizerCoordinatesStepBy18FromOrigin() {
+		assertEquals(80, PotMenuLayout.fertilizerX(0));
+		assertEquals(98, PotMenuLayout.fertilizerX(1));
+		assertEquals(134, PotMenuLayout.fertilizerX(3));
+		assertEquals(86, PotMenuLayout.fertilizerY(0));
+		assertEquals(104, PotMenuLayout.fertilizerY(1));
+		assertEquals(122, PotMenuLayout.fertilizerY(2));
+	}
+
+	@Test
 	void basicInputCoordinatesMatchSpec() {
 		assertEquals(80, PotMenuLayout.BASIC_SOIL_X);
 		assertEquals(48, PotMenuLayout.BASIC_SOIL_Y);
