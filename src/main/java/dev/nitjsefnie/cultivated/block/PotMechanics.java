@@ -254,6 +254,16 @@ public final class PotMechanics {
 	}
 
 	/**
+	 * True when a held item that matched a fertilizer recipe must consume the right-click,
+	 * even if the actual fertilizer application is a no-op (cooldown / crop too young or too
+	 * close to mature). Prevents the click from falling through to the empty-hand path, which
+	 * would otherwise open the pot menu (§B.2 step 2 always consumes the click).
+	 */
+	public static boolean heldFertilizerConsumesClick(final boolean fertilizerMatches) {
+		return fertilizerMatches;
+	}
+
+	/**
 	 * How a matched pot-interaction should consume the held item (§B.6): {@code damage_held} takes
 	 * priority, then {@code consume_held} (honoured only when not damaging), else nothing.
 	 */

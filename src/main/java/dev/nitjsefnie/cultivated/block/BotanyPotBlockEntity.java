@@ -673,11 +673,18 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		final PotInteractionRecipe interaction = PotRecipeCaches.interactions(false).firstMatching(held, context, this.level);
 		final boolean interactionMatches = interaction != null;
 
-		// §B.2: fertilizer (step 2) is attempted before pot-interaction (step 3); a matched-but-no-op
-		// fertilizer (cooldown / clamp) falls through so a pot-interaction can still apply.
+		// §B.2: fertilizer (step 2) is attempted before pot-interaction (step 3). A matched fertilizer
+		// always consumes the click: it either fertilizes, or no-ops, but it never falls through to the
+		// empty-hand path (which would open the menu). If the fertilizer no-ops and a pot-interaction
+		// also matches, the interaction is still applied as a fallback.
 		return switch (PotMechanics.heldItemBranch(this.potType.isWaxed(), fertilizerMatches, interactionMatches)) {
-			case FERTILIZE -> this.applyFertilizer(fertilizer, player, hand)
-				|| (interactionMatches && this.applyInteraction(interaction, player, hand));
+			case FERTILIZE -> {
+				boolean applied = this.applyFertilizer(fertilizer, player, hand);
+				if (!applied && interactionMatches) {
+					applied = this.applyInteraction(interaction, player, hand);
+				}
+				yield PotMechanics.heldFertilizerConsumesClick(fertilizerMatches);
+			}
 			case INTERACT -> this.applyInteraction(interaction, player, hand);
 			case DEFER, IGNORE -> false;
 		};
