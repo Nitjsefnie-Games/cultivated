@@ -89,6 +89,15 @@ class PotInteractionOrderTest {
 		assertEquals(HeldItemBranch.DEFER, PotMechanics.heldItemBranch(false, false, false));
 	}
 
+	@Test
+	void heldItem_fertilizerMatchAlwaysConsumesClick() {
+		// A held item that matched a fertilizer recipe must always consume the right-click,
+		// even if the actual fertilizer application no-ops (cooldown / crop too young or too
+		// close to mature). This stops the click from falling through to the empty-hand menu path.
+		assertTrue(PotMechanics.heldFertilizerConsumesClick(true));
+		assertFalse(PotMechanics.heldFertilizerConsumesClick(false));
+	}
+
 	// ---- pot-interaction consumption (§B.6): damage wins over consume ----
 
 	@Test
