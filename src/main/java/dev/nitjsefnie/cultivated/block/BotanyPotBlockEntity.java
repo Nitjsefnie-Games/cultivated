@@ -56,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  * game-tick accumulator (one step per game tick, so {@code /tick rate} scales growth speed — §G #4,
  * user decision 2026-07-20), drives its comparator output, auto-harvests + exports (hopper pots) and
  * holds at mature (basic pots). The fertilizer input region is hopper-only and insert-only for
- * automation; nothing consumes it yet (auto-fertilize is a later chunk). Waxed pots are decorative
+ * automation; hopper pots auto-fertilize from it (one item per cooldown window, silently). Waxed pots are decorative
  * and force growth to max without ticking.
  *
  * <p>The block, block-entity-type registration and ticker wiring are Task B2; this class references
@@ -483,6 +483,12 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			this.bonemealCooldown--;
 		}
 
+		// Hopper auto-fertilize (§B.5): after the cooldown decrement so an expired cooldown is usable
+		// THIS tick; the application re-arms it, pacing consumption to one item per cooldown window.
+		if (!client && this.potType.isHopper()) {
+			this.autoFertilizeFromInputs();
+		}
+
 		if (crop != null) {
 			if (this.growCooldown.get() > 0.0f) {
 				this.growCooldown.tickDown();
@@ -647,6 +653,30 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (!PotMechanics.canFertilize(this.growthTime.get(), required)) {
 			return false;
 		}
+		this.applyFertilizerGrowth(recipe, player);
+		recipe.soundEffect().ifPresent(sound ->
+			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
+
+		if (player != null && hand != null && !player.getAbilities().instabuild) {
+			player.getItemInHand(hand).shrink(1);
+		}
+		this.setChanged();
+		return true;
+	}
+
+	/**
+	 * The world-independent core of a fertilizer application (§A.5), shared by the manual right-click
+	 * path and the hopper auto-fertilize step: resolve and apply the clamped growth, start the bonemeal
+	 * cooldown, refresh the still-growing comparator, and run the recipe's particle/sculk effects.
+	 * Deliberately does NOT consume any item, play the recipe's sound, or call {@link #setChanged()} —
+	 * each caller owns those (the manual path shrinks the held stack and plays the sound; the
+	 * auto-fertilize step shrinks an input slot and stays silent to avoid tick-loop audio spam).
+	 * {@code player} is forwarded to the sculk game event (the manual interactor, or {@code null} for
+	 * automation). Callers must have verified the server level, the cooldown and
+	 * {@link PotMechanics#canFertilize}.
+	 */
+	private void applyFertilizerGrowth(final FertilizerRecipe recipe, final @Nullable Player player) {
+		final int required = this.requiredGrowthTicks();
 		final int added = recipe.growth().resolve(required, this.level.getRandom());
 		this.growthTime.set(PotMechanics.clampFertilizedGrowth(this.growthTime.get(), added, required));
 		this.bonemealCooldown = recipe.cooldown();
@@ -657,17 +687,48 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (recipe.spawnParticles()) {
 			this.spawnGrowthParticles();
 		}
-		recipe.soundEffect().ifPresent(sound ->
-			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
 		if (recipe.notifySculk()) {
 			this.level.gameEvent(player, GameEvent.BLOCK_CHANGE, this.worldPosition);
 		}
+	}
 
-		if (player != null && hand != null && !player.getAbilities().instabuild) {
-			player.getItemInHand(hand).shrink(1);
+	/**
+	 * Hopper auto-fertilize (§B.5): consume ONE fertilizer item per call from the fertilizer input
+	 * slots (15..26) and apply its recipe, whenever the crop can still be fertilized and the bonemeal
+	 * cooldown has expired — the cooldown just set paces the next application, so at most one item is
+	 * consumed per tick. Stacks that match no fertilizer recipe are skipped (a stray item cannot block
+	 * the slots behind it). Applies the growth/particle/sculk core via {@link #applyFertilizerGrowth}
+	 * but never the recipe's sound — a per-tick automation loop must not spam audio; the sound stays
+	 * exclusive to the manual right-click. No-op when there is nothing to apply.
+	 */
+	private void autoFertilizeFromInputs() {
+		if (this.level == null || this.level.isClientSide()) {
+			return;
 		}
-		this.setChanged();
-		return true;
+		if (!this.potType.isHopper()) {
+			return;
+		}
+		if (this.bonemealCooldown > 0) {
+			return;
+		}
+		if (!PotMechanics.canFertilize(this.growthTime.get(), this.requiredGrowthTicks())) {
+			return;
+		}
+		for (int slot = PotMechanics.nextNonEmptyFertilizerSlot(this.items, PotMechanics.FERTILIZER_INPUT_FIRST);
+				slot >= 0;
+				slot = PotMechanics.nextNonEmptyFertilizerSlot(this.items, slot + 1)) {
+			final ItemStack stack = this.items.get(slot);
+			// Same lookup + context shape as the manual path (see tryHeldInteraction): the slot's stack
+			// stands in for the held item, so soil/seed constraint tests see the identical live state.
+			final FertilizerRecipe recipe = PotRecipeCaches.fertilizers(false).firstMatching(stack, this.heldContext(stack), this.level);
+			if (recipe == null) {
+				continue;
+			}
+			this.applyFertilizerGrowth(recipe, null);
+			stack.shrink(1);
+			this.setChanged();
+			return;
+		}
 	}
 
 	/**

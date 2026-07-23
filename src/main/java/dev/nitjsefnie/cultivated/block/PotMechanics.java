@@ -149,6 +149,23 @@ public final class PotMechanics {
 	 * mature instead of auto-harvesting into a buffer with nowhere to put the drops — no item loss, no
 	 * infinite re-harvest — and resumes the moment space frees up.
 	 */
+	/**
+	 * The index of the first non-empty fertilizer input slot at or after {@code fromSlot}, or {@code -1}
+	 * when none remains. Scans only the fertilizer input region ({@link #FERTILIZER_INPUT_FIRST}..
+	 * {@link #FERTILIZER_INPUT_LAST}); a {@code fromSlot} below the region starts at its first slot.
+	 * The hopper auto-fertilize step walks candidates with this, resuming at {@code slot + 1} to skip
+	 * past a stack whose item matched no fertilizer recipe. {@code items} must be at least {@link #SIZE}
+	 * long; only the fertilizer input slots are read.
+	 */
+	public static int nextNonEmptyFertilizerSlot(final List<ItemStack> items, final int fromSlot) {
+		for (int slot = Math.max(fromSlot, FERTILIZER_INPUT_FIRST); slot <= FERTILIZER_INPUT_LAST; slot++) {
+			if (!items.get(slot).isEmpty()) {
+				return slot;
+			}
+		}
+		return -1;
+	}
+
 	public static boolean storageBufferHasRoom(final int[] freeCapacity) {
 		for (final int free : freeCapacity) {
 			if (free > 0) {
