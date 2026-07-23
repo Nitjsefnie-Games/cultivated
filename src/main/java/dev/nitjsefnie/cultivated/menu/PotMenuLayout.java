@@ -5,7 +5,7 @@ import dev.nitjsefnie.cultivated.block.PotMechanics;
 /**
  * Phase B §B.8 — the pure slot-coordinate and output-grid rules for the pot menus, factored out so
  * they can be unit-tested without a game runtime. All coordinates are relative to the top-left of the
- * container background (176×166 for the basic pot; the hopper background grew to 176×224 to make room
+ * container background (176×166 for the basic pot; the hopper background grew to 176×215 to make room
  * for the fertilizer input grid above the player inventory).
  */
 public final class PotMenuLayout {
@@ -30,9 +30,9 @@ public final class PotMenuLayout {
 	public static final int OUTPUT_COLUMNS = 4;
 	public static final int OUTPUT_ROWS = 3;
 
-	// Hopper pot fertilizer input grid: 4 columns × 3 rows from (80,86) stepping 18px, container slots 15..26.
+	// Hopper pot fertilizer input grid: 4 columns × 3 rows from (80,74) stepping 18px, container slots 15..26.
 	public static final int FERTILIZER_ORIGIN_X = 80;
-	public static final int FERTILIZER_ORIGIN_Y = 86;
+	public static final int FERTILIZER_ORIGIN_Y = 74;
 	public static final int FERTILIZER_STEP = 18;
 	public static final int FERTILIZER_COLUMNS = 4;
 	public static final int FERTILIZER_ROWS = 3;

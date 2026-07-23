@@ -70,9 +70,9 @@ class PotMenuLayoutTest {
 		assertEquals(80, PotMenuLayout.fertilizerX(0));
 		assertEquals(98, PotMenuLayout.fertilizerX(1));
 		assertEquals(134, PotMenuLayout.fertilizerX(3));
-		assertEquals(86, PotMenuLayout.fertilizerY(0));
-		assertEquals(104, PotMenuLayout.fertilizerY(1));
-		assertEquals(122, PotMenuLayout.fertilizerY(2));
+		assertEquals(74, PotMenuLayout.fertilizerY(0));
+		assertEquals(92, PotMenuLayout.fertilizerY(1));
+		assertEquals(110, PotMenuLayout.fertilizerY(2));
 	}
 
 	@Test

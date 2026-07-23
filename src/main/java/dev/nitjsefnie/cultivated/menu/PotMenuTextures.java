@@ -22,7 +22,7 @@ public final class PotMenuTextures {
 
 	/** Basic pot container background (176×166). */
 	public static final Identifier BASIC_BACKGROUND = Cultivated.id("textures/gui/container/basic_pot.png");
-	/** Hopper pot container background (176×224 — taller than the basic one to fit the fertilizer grid). */
+	/** Hopper pot container background (176×215 — taller than the basic one to fit the fertilizer grid). */
 	public static final Identifier HOPPER_BACKGROUND = Cultivated.id("textures/gui/container/hopper_pot.png");
 
 	private PotMenuTextures() {

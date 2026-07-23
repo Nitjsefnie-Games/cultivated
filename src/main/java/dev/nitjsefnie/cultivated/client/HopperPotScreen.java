@@ -14,7 +14,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Phase B §B.7/§B.8 — the client screen for the {@code cultivated:hopper_pot_menu}. Draws the 176×224
+ * Phase B §B.7/§B.8 — the client screen for the {@code cultivated:hopper_pot_menu}. Draws the 176×215
  * container background, the soil/seed/tool input slots with their placeholder icons, the 4×3 grid of
  * output slots, and the 4×3 grid of fertilizer input slots above the player inventory. Tooltip lines
  * are Task B5.
@@ -22,7 +22,7 @@ import net.minecraft.world.item.ItemStack;
 @Environment(EnvType.CLIENT)
 public class HopperPotScreen extends AbstractContainerScreen<HopperPotMenu> {
 	private static final int IMAGE_WIDTH = 176;
-	private static final int IMAGE_HEIGHT = 224;
+	private static final int IMAGE_HEIGHT = 215;
 
 	public HopperPotScreen(final HopperPotMenu menu, final Inventory inventory, final Component title) {
 		super(menu, inventory, title, IMAGE_WIDTH, IMAGE_HEIGHT);
