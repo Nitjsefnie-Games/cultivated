@@ -135,6 +135,28 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		return this.potType;
 	}
 
+	/**
+	 * Read-only view of every distinct item this hopper pot has generated, in discovery order — for the
+	 * generated-items sync packets (chunk 2). The returned list is unmodifiable; mutate it through
+	 * {@link #setGeneratedSuppressed}.
+	 */
+	public List<GeneratedItems.Entry> getGeneratedItems() {
+		return this.generated.view();
+	}
+
+	/**
+	 * Server-side flip of one generated entry's suppression flag, driven by the toggle packet. A
+	 * malicious or stale packet index outside the list is ignored (never throws); a real change marks
+	 * the block entity dirty so the new flag persists.
+	 */
+	public void setGeneratedSuppressed(final int index, final boolean suppressed) {
+		if (index < 0 || index >= this.generated.view().size()) {
+			return;
+		}
+		this.generated.setSuppressed(index, suppressed);
+		this.setChanged();
+	}
+
 	public Tier getTier() {
 		return this.tier;
 	}

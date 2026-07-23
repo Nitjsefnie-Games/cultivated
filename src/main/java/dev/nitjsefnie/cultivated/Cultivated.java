@@ -3,6 +3,7 @@ package dev.nitjsefnie.cultivated;
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
 import dev.nitjsefnie.cultivated.command.CultivatedCommands;
 import dev.nitjsefnie.cultivated.config.CultivatedConfigFile;
+import dev.nitjsefnie.cultivated.network.ModNetworking;
 import dev.nitjsefnie.cultivated.plugin.CultivatedPlugins;
 import dev.nitjsefnie.cultivated.registry.CultivatedRegistries;
 import net.fabricmc.api.ModInitializer;
@@ -39,6 +40,9 @@ public class Cultivated implements ModInitializer {
 			PotRecipeCaches.rebuildServer(server.getRecipeManager(), server.registryAccess()));
 		ServerLifecycleEvents.END_DATA_PACK_RELOAD.register((server, resources, success) ->
 			PotRecipeCaches.rebuildServer(server.getRecipeManager(), server.registryAccess()));
+
+		// Chunk 2 — generated-items payloads (types on both sides, serverbound receivers on the server).
+		ModNetworking.register();
 
 		// F.2 — the /cultivated debug command tree (owner-gated datapack QA tooling).
 		CultivatedCommands.register();

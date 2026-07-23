@@ -3,13 +3,16 @@ package dev.nitjsefnie.cultivated;
 import dev.nitjsefnie.cultivated.block.BotanyPotBlockEntity;
 import dev.nitjsefnie.cultivated.cache.PotRecipeCaches;
 import dev.nitjsefnie.cultivated.client.BasicPotScreen;
+import dev.nitjsefnie.cultivated.client.GeneratedItemsClientData;
 import dev.nitjsefnie.cultivated.client.HopperPotScreen;
 import dev.nitjsefnie.cultivated.client.TierPotTooltip;
 import dev.nitjsefnie.cultivated.client.render.BotanyPotBlockEntityRenderer;
+import dev.nitjsefnie.cultivated.network.GeneratedItemsSyncPayload;
 import dev.nitjsefnie.cultivated.registry.ModBlockEntities;
 import dev.nitjsefnie.cultivated.registry.ModMenus;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.recipe.v1.sync.ClientRecipeSynchronizedEvent;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.minecraft.client.gui.screens.MenuScreens;
@@ -37,6 +40,11 @@ public final class CultivatedClient implements ClientModInitializer {
 		// but screen registration still goes through vanilla MenuScreens#register.
 		MenuScreens.register(ModMenus.BASIC_POT, BasicPotScreen::new);
 		MenuScreens.register(ModMenus.HOPPER_POT, HopperPotScreen::new);
+
+		// Chunk 2 — receive the generated-items snapshot into the client store the
+		// GeneratedItemsScreen reads (the payload type itself was registered in common init).
+		ClientPlayNetworking.registerGlobalReceiver(GeneratedItemsSyncPayload.TYPE, (payload, context) ->
+			GeneratedItemsClientData.applySync(payload));
 
 		// Draw the soil/crop displays in the planter (§C), for the base pot BE type and each tier BE type
 		// (§D) — all share the one renderer. The BE types were registered during common init (Task B2/D2),
