@@ -50,12 +50,14 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Phase B §B.3/§B.4/§B.5 — the stateful heart of the botany pot: a 15-slot world-aware container
- * ({@code SOIL=0, SEED=1, TOOL=2}, storage {@code 3..14}) that resolves its crop/soil (override
- * component first, then the sided recipe cache), grows on a game-tick accumulator (one step per
- * game tick, so {@code /tick rate} scales growth speed — §G #4, user decision 2026-07-20),
- * drives its comparator output, auto-harvests + exports (hopper pots) and holds at mature (basic
- * pots). Waxed pots are decorative and force growth to max without ticking.
+ * Phase B §B.3/§B.4/§B.5 — the stateful heart of the botany pot: a 27-slot world-aware container
+ * ({@code SOIL=0, SEED=1, TOOL=2}, storage {@code 3..14}, fertilizer inputs {@code 15..26}) that
+ * resolves its crop/soil (override component first, then the sided recipe cache), grows on a
+ * game-tick accumulator (one step per game tick, so {@code /tick rate} scales growth speed — §G #4,
+ * user decision 2026-07-20), drives its comparator output, auto-harvests + exports (hopper pots) and
+ * holds at mature (basic pots). The fertilizer input region is hopper-only and insert-only for
+ * automation; nothing consumes it yet (auto-fertilize is a later chunk). Waxed pots are decorative
+ * and force growth to max without ticking.
  *
  * <p>The block, block-entity-type registration and ticker wiring are Task B2; this class references
  * its own type lazily through the settable {@link #TYPE} holder that B2 assigns, so it compiles and
@@ -224,8 +226,26 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		return switch (slot) {
 			case PotMechanics.SOIL, PotMechanics.SEED -> true;
 			case PotMechanics.TOOL -> stack.is(ModTags.HARVEST_ITEMS);
-			default -> false; // storage slots are output-only
+			default -> PotMechanics.isFertilizerInputSlot(slot) && this.canHoldFertilizer(stack);
 		};
+	}
+
+	/**
+	 * A fertilizer input slot accepts {@code stack} only on a hopper pot and only when the stack
+	 * matches a fertilizer recipe — the same lookup the right-click interaction path uses
+	 * ({@link #tryHeldInteraction}). On a non-hopper pot the fertilizer slots reject everything,
+	 * staying inert like the storage slots. Without a level no recipe can resolve, so it rejects.
+	 */
+	private boolean canHoldFertilizer(final ItemStack stack) {
+		return this.potType.isHopper() && this.matchesFertilizer(stack);
+	}
+
+	/** True if {@code stack} matches a fertilizer recipe against this pot's live context. */
+	private boolean matchesFertilizer(final ItemStack stack) {
+		if (stack.isEmpty() || this.level == null) {
+			return false;
+		}
+		return PotRecipeCaches.fertilizers(this.level.isClientSide()).firstMatching(stack, this.heldContext(stack), this.level) != null;
 	}
 
 	@Override
@@ -251,7 +271,9 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 	@Override
 	public boolean canPlaceItemThroughFace(final int slot, final ItemStack stack, final @Nullable Direction direction) {
-		return PotMechanics.canAutomationPlace();
+		// Fertilizer inputs only, on hopper pots, via a non-DOWN face — and the stack must match a
+		// fertilizer recipe (the same acceptance rule as canPlaceItem). Everything else rejects.
+		return PotMechanics.canAutomationPlaceInto(this.potType.isHopper(), slot, direction) && this.matchesFertilizer(stack);
 	}
 
 	@Override

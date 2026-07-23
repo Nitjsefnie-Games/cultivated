@@ -15,8 +15,12 @@ import net.minecraft.world.entity.player.Inventory;
  * the player inventory.
  */
 public class HopperPotMenu extends AbstractPotMenu {
-	/** All 15 container slots are exposed by the hopper menu (soil, seed, tool, 12 outputs). */
-	private static final int POT_SLOTS = PotMechanics.SIZE;
+	/**
+	 * The 15 pot slots this menu exposes (soil, seed, tool, 12 outputs) — deliberately NOT
+	 * {@link PotMechanics#SIZE}: the fertilizer input region (15..26) is automation-only and has no
+	 * menu slots yet, so quick-move routing still ends the pot range at the last storage slot.
+	 */
+	private static final int POT_SLOTS = PotMechanics.LAST_STORAGE + 1;
 
 	/** Client-side factory (via {@link ModMenus#HOPPER_POT}): no live container, only the synced pos. */
 	public HopperPotMenu(final int containerId, final Inventory inventory, final BlockPos pos) {
