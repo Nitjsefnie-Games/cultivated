@@ -758,19 +758,45 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 		// §B.2: fertilizer (step 2) is attempted before pot-interaction (step 3). A matched fertilizer
 		// always consumes the click: it either fertilizes, or no-ops, but it never falls through to the
-		// empty-hand path (which would open the menu). If the fertilizer no-ops and a pot-interaction
-		// also matches, the interaction is still applied as a fallback.
+		// empty-hand path (which would open the menu). On a HOPPER pot the click DEPOSITS the held stack
+		// into the fertilizer input slots (15..26) for the auto-fertilize tick to consume, instead of
+		// one-shot fertilizing; on a BASIC pot the one-shot applyFertilizer runs, with a pot-interaction
+		// as fallback when the fertilizer no-ops.
 		return switch (PotMechanics.heldItemBranch(this.potType.isWaxed(), fertilizerMatches, interactionMatches)) {
 			case FERTILIZE -> {
-				boolean applied = this.applyFertilizer(fertilizer, player, hand);
-				if (!applied && interactionMatches) {
-					applied = this.applyInteraction(interaction, player, hand);
+				if (this.potType.isHopper()) {
+					this.depositHeldFertilizer(player, hand);
+				} else {
+					boolean applied = this.applyFertilizer(fertilizer, player, hand);
+					if (!applied && interactionMatches) {
+						applied = this.applyInteraction(interaction, player, hand);
+					}
 				}
 				yield PotMechanics.heldFertilizerConsumesClick(fertilizerMatches);
 			}
 			case INTERACT -> this.applyInteraction(interaction, player, hand);
 			case DEFER, IGNORE -> false;
 		};
+	}
+
+	/**
+	 * Hopper-pot right-click deposit: place as much of the held fertilizer stack as fits into the
+	 * fertilizer input slots (15..26) and shrink the held stack by the placed count (unless the player
+	 * is in creative, mirroring {@link #applyFertilizer}'s shrink guard). No sound and no client sync —
+	 * the BE sync tag only covers the soil/seed/tool slots, so fertilizer input contents are server-side
+	 * (and menu-synced while open), exactly like the storage slots. When nothing fits the held stack is
+	 * untouched; the click is still consumed by the caller.
+	 */
+	private void depositHeldFertilizer(final Player player, final InteractionHand hand) {
+		final ItemStack held = player.getItemInHand(hand);
+		final int placed = PotMechanics.depositFertilizer(this.items, held, this.getMaxStackSize());
+		if (placed <= 0) {
+			return;
+		}
+		if (!player.getAbilities().instabuild) {
+			held.shrink(placed);
+		}
+		this.setChanged();
 	}
 
 	/** Apply a matched pot-interaction (§B.6) in world: transform soil/seed, roll drops, effects, consume held. */

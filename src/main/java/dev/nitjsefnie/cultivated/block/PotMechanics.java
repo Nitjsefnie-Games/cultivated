@@ -207,6 +207,45 @@ public final class PotMechanics {
 	}
 
 	/**
+	 * Merge {@code held} into the fertilizer input region (slots {@link #FERTILIZER_INPUT_FIRST}..
+	 * {@link #FERTILIZER_INPUT_LAST}) of {@code items} in place, returning the count placed. Stacks onto
+	 * matching non-empty slots first, then fills empty slots; each slot is capped at
+	 * {@code min(containerMax, item's own max stack size)}. Only the fertilizer input slots are touched.
+	 *
+	 * <p>The hopper-pot right-click path (the only caller) places what fits and shrinks the player's held
+	 * stack by the returned count — unlike {@link #fillStorage}, {@code held} is NOT mutated here (the
+	 * caller owns the creative-mode shrink guard); any remainder simply stays in the player's hand. The
+	 * hopper auto-fertilize tick then consumes the deposited stack, so nothing is ever voided.
+	 */
+	public static int depositFertilizer(final List<ItemStack> items, final ItemStack held, final int containerMax) {
+		if (held.isEmpty()) {
+			return 0;
+		}
+		int placed = 0;
+		// Pass 1: top up matching non-empty stacks.
+		for (int slot = FERTILIZER_INPUT_FIRST; slot <= FERTILIZER_INPUT_LAST && placed < held.getCount(); slot++) {
+			final ItemStack current = items.get(slot);
+			if (!current.isEmpty() && ItemStack.isSameItemSameComponents(current, held)) {
+				final int space = Math.min(containerMax, current.getMaxStackSize()) - current.getCount();
+				if (space > 0) {
+					final int move = Math.min(space, held.getCount() - placed);
+					current.grow(move);
+					placed += move;
+				}
+			}
+		}
+		// Pass 2: fill empty slots (a fresh copy per slot; held itself is never split or shrunk).
+		for (int slot = FERTILIZER_INPUT_FIRST; slot <= FERTILIZER_INPUT_LAST && placed < held.getCount(); slot++) {
+			if (items.get(slot).isEmpty()) {
+				final int move = Math.min(held.getCount() - placed, Math.min(containerMax, held.getMaxStackSize()));
+				items.set(slot, held.copyWithCount(move));
+				placed += move;
+			}
+		}
+		return placed;
+	}
+
+	/**
 	 * Whether replacing an input slot's {@code old} stack with {@code replacement} should DROP the old
 	 * stack above the pot (§B.6 / R3b). A same-item replacement — e.g. hoeing a dirt/grass pot to
 	 * farmland, which swaps {@code minecraft:dirt} for {@code minecraft:dirt} carrying the
