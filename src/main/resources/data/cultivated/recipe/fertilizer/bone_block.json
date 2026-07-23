@@ -1,0 +1,12 @@
+{
+	"type": "cultivated:fertilizer",
+	"held_item": "minecraft:bone_block",
+	"growth": {
+		"type": "cultivated:ranged",
+		"min": 3600,
+		"max": 5400
+	},
+	"sound_effect": {
+		"id": "minecraft:item.bone_meal.use"
+	}
+}
