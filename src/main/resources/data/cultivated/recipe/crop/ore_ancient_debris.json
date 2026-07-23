@@ -1,0 +1,8 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:ancient_debris",
+	"input": "minecraft:netherite_scrap",
+	"grow_time": 24000,
+	"soil": "minecraft:netherite_block",
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:netherite_scrap", "count": 1 } } ] } ]
+}

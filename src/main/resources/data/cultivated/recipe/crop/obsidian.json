@@ -1,0 +1,8 @@
+{
+	"type": "cultivated:block_derived_crop",
+	"block": "minecraft:obsidian",
+	"input": "minecraft:obsidian",
+	"grow_time": 6000,
+	"soil": "#cultivated:soil/lava",
+	"drops": [ { "type": "cultivated:items", "items": [ { "result": { "id": "minecraft:obsidian", "count": 1 } } ] } ]
+}
