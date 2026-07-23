@@ -14,14 +14,15 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Phase B §B.7/§B.8 — the client screen for the {@code cultivated:hopper_pot_menu}. Draws the 176×166
- * container background (a Task B6 placeholder texture until authored), the soil/seed/tool input slots
- * with their placeholder icons, and the 4×3 grid of output slots. Tooltip lines are Task B5.
+ * Phase B §B.7/§B.8 — the client screen for the {@code cultivated:hopper_pot_menu}. Draws the 176×224
+ * container background, the soil/seed/tool input slots with their placeholder icons, the 4×3 grid of
+ * output slots, and the 4×3 grid of fertilizer input slots above the player inventory. Tooltip lines
+ * are Task B5.
  */
 @Environment(EnvType.CLIENT)
 public class HopperPotScreen extends AbstractContainerScreen<HopperPotMenu> {
 	private static final int IMAGE_WIDTH = 176;
-	private static final int IMAGE_HEIGHT = 166;
+	private static final int IMAGE_HEIGHT = 224;
 
 	public HopperPotScreen(final HopperPotMenu menu, final Inventory inventory, final Component title) {
 		super(menu, inventory, title, IMAGE_WIDTH, IMAGE_HEIGHT);

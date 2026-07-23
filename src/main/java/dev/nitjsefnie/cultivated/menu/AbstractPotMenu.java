@@ -18,16 +18,16 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Phase B §B.7 — shared base for the botany pot menus. Wraps the pot's 15-slot {@link Container}
+ * Phase B §B.7 — shared base for the botany pot menus. Wraps the pot's 27-slot {@link Container}
  * (the live {@link dev.nitjsefnie.cultivated.block.BotanyPotBlockEntity} on the server, a throwaway
  * {@link net.minecraft.world.SimpleContainer} on the client), carries the pot's {@link BlockPos} so
  * client-side tooltip code (Task B5) can reach the live block entity, and implements the bespoke
- * shift-click routing (§B.7). Subclasses add their own pot slots (soil/seed[/tool/outputs]) in
- * container-slot order — so a pot slot's menu index equals its container index — then call
+ * shift-click routing (§B.7). Subclasses add their own pot slots (soil/seed[/tool/outputs/fertilizer])
+ * in container-slot order — so a pot slot's menu index equals its container index — then call
  * {@link #addPlayerInventory(Inventory)}.
  */
 public abstract class AbstractPotMenu extends AbstractContainerMenu {
-	/** The player inventory's top edge inside the 176×166 container background (§B.8). */
+	/** The basic pot player inventory's top edge inside its 176×166 container background (§B.8). */
 	protected static final int INVENTORY_LEFT = 8;
 	protected static final int INVENTORY_TOP = 84;
 	/** Number of player-inventory + hotbar slots added by {@link #addStandardInventorySlots}. */
@@ -55,14 +55,20 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 	/** Whether this menu exposes a harvest-tool slot (basic pots do not). */
 	protected abstract boolean hasToolSlot();
 
+	/**
+	 * The player inventory's top edge inside this menu's container background. Per-menu because the
+	 * hopper background (176×224) is taller than the basic one (176×166).
+	 */
+	protected abstract int inventoryTop();
+
 	/** The pot's world position — needed client-side (Task B5) to reach the live block entity. */
 	public BlockPos getPos() {
 		return this.pos;
 	}
 
-	/** Add the standard 3×9 inventory grid + hotbar at the shared (§B.8) offset. */
+	/** Add the standard 3×9 inventory grid + hotbar at this menu's {@link #inventoryTop()} offset. */
 	protected final void addPlayerInventory(final Inventory inventory) {
-		this.addStandardInventorySlots(inventory, INVENTORY_LEFT, INVENTORY_TOP);
+		this.addStandardInventorySlots(inventory, INVENTORY_LEFT, this.inventoryTop());
 	}
 
 	@Override
@@ -91,15 +97,21 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 			}
 		} else {
 			// From the player inventory — route to a pot input slot, else move within inv/hotbar.
+			final boolean hasFertilizerSlots = potSlots >= PotMechanics.SIZE;
 			final int target = PotMenuRouting.routeFromInventory(
 				this.hasToolSlot(),
 				stack.is(ModTags.HARVEST_ITEMS),
 				this.container.getItem(PotMechanics.TOOL).isEmpty(),
+				hasFertilizerSlots && this.resolvesFertilizer(stack),
 				this.resolvesSoil(stack),
 				this.resolvesCrop(stack)
 			);
 			boolean moved = false;
-			if (target != PotMenuRouting.ROUTE_INVENTORY) {
+			if (target == PotMechanics.FERTILIZER_INPUT_FIRST) {
+				// Fertilizer fills the whole 15..26 input region, not a single slot.
+				moved = this.moveItemStackTo(
+					stack, PotMechanics.FERTILIZER_INPUT_FIRST, PotMechanics.FERTILIZER_INPUT_LAST + 1, false);
+			} else if (target != PotMenuRouting.ROUTE_INVENTORY) {
 				// A pot input slot's menu index equals its container index (subclasses add in order).
 				moved = this.moveItemStackTo(stack, target, target + 1, false);
 			}
@@ -126,6 +138,18 @@ public abstract class AbstractPotMenu extends AbstractContainerMenu {
 		}
 		slot.onTake(player, stack);
 		return original;
+	}
+
+	/**
+	 * True if {@code stack} resolves to a fertilizer via the sided fertilizer recipe cache. Mirrors the
+	 * block entity's {@code matchesFertilizer} lookup so the hopper menu's fertilizer input slots accept —
+	 * and shift-clicks route to them — exactly what the pot can auto-fertilize with.
+	 */
+	protected boolean resolvesFertilizer(final ItemStack stack) {
+		if (stack.isEmpty()) {
+			return false;
+		}
+		return PotRecipeCaches.fertilizers(this.clientSide).lookup(stack, SimplePotContext.ofHeld(stack)) != null;
 	}
 
 	/** True if {@code stack} resolves to a soil (item override component first, then the sided cache). */

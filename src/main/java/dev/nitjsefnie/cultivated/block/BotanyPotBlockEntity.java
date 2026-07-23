@@ -50,12 +50,14 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Phase B §B.3/§B.4/§B.5 — the stateful heart of the botany pot: a 15-slot world-aware container
- * ({@code SOIL=0, SEED=1, TOOL=2}, storage {@code 3..14}) that resolves its crop/soil (override
- * component first, then the sided recipe cache), grows on a game-tick accumulator (one step per
- * game tick, so {@code /tick rate} scales growth speed — §G #4, user decision 2026-07-20),
- * drives its comparator output, auto-harvests + exports (hopper pots) and holds at mature (basic
- * pots). Waxed pots are decorative and force growth to max without ticking.
+ * Phase B §B.3/§B.4/§B.5 — the stateful heart of the botany pot: a 27-slot world-aware container
+ * ({@code SOIL=0, SEED=1, TOOL=2}, storage {@code 3..14}, fertilizer inputs {@code 15..26}) that
+ * resolves its crop/soil (override component first, then the sided recipe cache), grows on a
+ * game-tick accumulator (one step per game tick, so {@code /tick rate} scales growth speed — §G #4,
+ * user decision 2026-07-20), drives its comparator output, auto-harvests + exports (hopper pots) and
+ * holds at mature (basic pots). The fertilizer input region is hopper-only and insert-only for
+ * automation; hopper pots auto-fertilize from it (one item per cooldown window, silently). Waxed pots are decorative
+ * and force growth to max without ticking.
  *
  * <p>The block, block-entity-type registration and ticker wiring are Task B2; this class references
  * its own type lazily through the settable {@link #TYPE} holder that B2 assigns, so it compiles and
@@ -224,8 +226,26 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		return switch (slot) {
 			case PotMechanics.SOIL, PotMechanics.SEED -> true;
 			case PotMechanics.TOOL -> stack.is(ModTags.HARVEST_ITEMS);
-			default -> false; // storage slots are output-only
+			default -> PotMechanics.isFertilizerInputSlot(slot) && this.canHoldFertilizer(stack);
 		};
+	}
+
+	/**
+	 * A fertilizer input slot accepts {@code stack} only on a hopper pot and only when the stack
+	 * matches a fertilizer recipe — the same lookup the right-click interaction path uses
+	 * ({@link #tryHeldInteraction}). On a non-hopper pot the fertilizer slots reject everything,
+	 * staying inert like the storage slots. Without a level no recipe can resolve, so it rejects.
+	 */
+	private boolean canHoldFertilizer(final ItemStack stack) {
+		return this.potType.isHopper() && this.matchesFertilizer(stack);
+	}
+
+	/** True if {@code stack} matches a fertilizer recipe against this pot's live context. */
+	private boolean matchesFertilizer(final ItemStack stack) {
+		if (stack.isEmpty() || this.level == null) {
+			return false;
+		}
+		return PotRecipeCaches.fertilizers(this.level.isClientSide()).firstMatching(stack, this.heldContext(stack), this.level) != null;
 	}
 
 	@Override
@@ -251,7 +271,9 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 	@Override
 	public boolean canPlaceItemThroughFace(final int slot, final ItemStack stack, final @Nullable Direction direction) {
-		return PotMechanics.canAutomationPlace();
+		// Fertilizer inputs only, on hopper pots, via a non-DOWN face — and the stack must match a
+		// fertilizer recipe (the same acceptance rule as canPlaceItem). Everything else rejects.
+		return PotMechanics.canAutomationPlaceInto(this.potType.isHopper(), slot, direction) && this.matchesFertilizer(stack);
 	}
 
 	@Override
@@ -461,6 +483,12 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 			this.bonemealCooldown--;
 		}
 
+		// Hopper auto-fertilize (§B.5): after the cooldown decrement so an expired cooldown is usable
+		// THIS tick; the application re-arms it, pacing consumption to one item per cooldown window.
+		if (!client && this.potType.isHopper()) {
+			this.autoFertilizeFromInputs();
+		}
+
 		if (crop != null) {
 			if (this.growCooldown.get() > 0.0f) {
 				this.growCooldown.tickDown();
@@ -625,6 +653,30 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (!PotMechanics.canFertilize(this.growthTime.get(), required)) {
 			return false;
 		}
+		this.applyFertilizerGrowth(recipe, player);
+		recipe.soundEffect().ifPresent(sound ->
+			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
+
+		if (player != null && hand != null && !player.getAbilities().instabuild) {
+			player.getItemInHand(hand).shrink(1);
+		}
+		this.setChanged();
+		return true;
+	}
+
+	/**
+	 * The world-independent core of a fertilizer application (§A.5), shared by the manual right-click
+	 * path and the hopper auto-fertilize step: resolve and apply the clamped growth, start the bonemeal
+	 * cooldown, refresh the still-growing comparator, and run the recipe's particle/sculk effects.
+	 * Deliberately does NOT consume any item, play the recipe's sound, or call {@link #setChanged()} —
+	 * each caller owns those (the manual path shrinks the held stack and plays the sound; the
+	 * auto-fertilize step shrinks an input slot and stays silent to avoid tick-loop audio spam).
+	 * {@code player} is forwarded to the sculk game event (the manual interactor, or {@code null} for
+	 * automation). Callers must have verified the server level, the cooldown and
+	 * {@link PotMechanics#canFertilize}.
+	 */
+	private void applyFertilizerGrowth(final FertilizerRecipe recipe, final @Nullable Player player) {
+		final int required = this.requiredGrowthTicks();
 		final int added = recipe.growth().resolve(required, this.level.getRandom());
 		this.growthTime.set(PotMechanics.clampFertilizedGrowth(this.growthTime.get(), added, required));
 		this.bonemealCooldown = recipe.cooldown();
@@ -635,17 +687,48 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		if (recipe.spawnParticles()) {
 			this.spawnGrowthParticles();
 		}
-		recipe.soundEffect().ifPresent(sound ->
-			this.level.playSound(null, this.worldPosition, sound.sound().value(), sound.category(), sound.volume(), sound.pitch()));
 		if (recipe.notifySculk()) {
 			this.level.gameEvent(player, GameEvent.BLOCK_CHANGE, this.worldPosition);
 		}
+	}
 
-		if (player != null && hand != null && !player.getAbilities().instabuild) {
-			player.getItemInHand(hand).shrink(1);
+	/**
+	 * Hopper auto-fertilize (§B.5): consume ONE fertilizer item per call from the fertilizer input
+	 * slots (15..26) and apply its recipe, whenever the crop can still be fertilized and the bonemeal
+	 * cooldown has expired — the cooldown just set paces the next application, so at most one item is
+	 * consumed per tick. Stacks that match no fertilizer recipe are skipped (a stray item cannot block
+	 * the slots behind it). Applies the growth/particle/sculk core via {@link #applyFertilizerGrowth}
+	 * but never the recipe's sound — a per-tick automation loop must not spam audio; the sound stays
+	 * exclusive to the manual right-click. No-op when there is nothing to apply.
+	 */
+	private void autoFertilizeFromInputs() {
+		if (this.level == null || this.level.isClientSide()) {
+			return;
 		}
-		this.setChanged();
-		return true;
+		if (!this.potType.isHopper()) {
+			return;
+		}
+		if (this.bonemealCooldown > 0) {
+			return;
+		}
+		if (!PotMechanics.canFertilize(this.growthTime.get(), this.requiredGrowthTicks())) {
+			return;
+		}
+		for (int slot = PotMechanics.nextNonEmptyFertilizerSlot(this.items, PotMechanics.FERTILIZER_INPUT_FIRST);
+				slot >= 0;
+				slot = PotMechanics.nextNonEmptyFertilizerSlot(this.items, slot + 1)) {
+			final ItemStack stack = this.items.get(slot);
+			// Same lookup + context shape as the manual path (see tryHeldInteraction): the slot's stack
+			// stands in for the held item, so soil/seed constraint tests see the identical live state.
+			final FertilizerRecipe recipe = PotRecipeCaches.fertilizers(false).firstMatching(stack, this.heldContext(stack), this.level);
+			if (recipe == null) {
+				continue;
+			}
+			this.applyFertilizerGrowth(recipe, null);
+			stack.shrink(1);
+			this.setChanged();
+			return;
+		}
 	}
 
 	/**
@@ -675,19 +758,45 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 
 		// §B.2: fertilizer (step 2) is attempted before pot-interaction (step 3). A matched fertilizer
 		// always consumes the click: it either fertilizes, or no-ops, but it never falls through to the
-		// empty-hand path (which would open the menu). If the fertilizer no-ops and a pot-interaction
-		// also matches, the interaction is still applied as a fallback.
+		// empty-hand path (which would open the menu). On a HOPPER pot the click DEPOSITS the held stack
+		// into the fertilizer input slots (15..26) for the auto-fertilize tick to consume, instead of
+		// one-shot fertilizing; on a BASIC pot the one-shot applyFertilizer runs, with a pot-interaction
+		// as fallback when the fertilizer no-ops.
 		return switch (PotMechanics.heldItemBranch(this.potType.isWaxed(), fertilizerMatches, interactionMatches)) {
 			case FERTILIZE -> {
-				boolean applied = this.applyFertilizer(fertilizer, player, hand);
-				if (!applied && interactionMatches) {
-					applied = this.applyInteraction(interaction, player, hand);
+				if (this.potType.isHopper()) {
+					this.depositHeldFertilizer(player, hand);
+				} else {
+					boolean applied = this.applyFertilizer(fertilizer, player, hand);
+					if (!applied && interactionMatches) {
+						applied = this.applyInteraction(interaction, player, hand);
+					}
 				}
 				yield PotMechanics.heldFertilizerConsumesClick(fertilizerMatches);
 			}
 			case INTERACT -> this.applyInteraction(interaction, player, hand);
 			case DEFER, IGNORE -> false;
 		};
+	}
+
+	/**
+	 * Hopper-pot right-click deposit: place as much of the held fertilizer stack as fits into the
+	 * fertilizer input slots (15..26) and shrink the held stack by the placed count (unless the player
+	 * is in creative, mirroring {@link #applyFertilizer}'s shrink guard). No sound and no client sync —
+	 * the BE sync tag only covers the soil/seed/tool slots, so fertilizer input contents are server-side
+	 * (and menu-synced while open), exactly like the storage slots. When nothing fits the held stack is
+	 * untouched; the click is still consumed by the caller.
+	 */
+	private void depositHeldFertilizer(final Player player, final InteractionHand hand) {
+		final ItemStack held = player.getItemInHand(hand);
+		final int placed = PotMechanics.depositFertilizer(this.items, held, this.getMaxStackSize());
+		if (placed <= 0) {
+			return;
+		}
+		if (!player.getAbilities().instabuild) {
+			held.shrink(placed);
+		}
+		this.setChanged();
 	}
 
 	/** Apply a matched pot-interaction (§B.6) in world: transform soil/seed, roll drops, effects, consume held. */

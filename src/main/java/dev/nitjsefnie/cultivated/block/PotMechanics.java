@@ -3,12 +3,13 @@ package dev.nitjsefnie.cultivated.block;
 import java.util.List;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Phase B — the pure, world-independent pot arithmetic and slot rules, factored out of
  * {@link BotanyPotBlockEntity} so they can be unit-tested without a game runtime. Covers the
- * 15-slot layout (§B.3), the comparator scaling math (§B.5), the fertilizer growth clamp (§A.5),
- * and the automation-face rules (§B.3).
+ * 27-slot layout (§B.3 + the fertilizer-input region), the comparator scaling math (§B.5), the
+ * fertilizer growth clamp (§A.5), and the automation-face rules (§B.3).
  */
 public final class PotMechanics {
 	/** Soil input slot. */
@@ -23,22 +24,29 @@ public final class PotMechanics {
 	public static final int LAST_STORAGE = 14;
 	/** Number of storage/output slots. */
 	public static final int STORAGE_COUNT = 12;
+	/** First fertilizer input slot (hopper pots only; insert-only for automation). */
+	public static final int FERTILIZER_INPUT_FIRST = 15;
+	/** Last fertilizer input slot (inclusive). */
+	public static final int FERTILIZER_INPUT_LAST = 26;
+	/** Number of fertilizer input slots. */
+	public static final int FERTILIZER_INPUT_COUNT = 12;
 	/** Total container size. */
-	public static final int SIZE = 15;
+	public static final int SIZE = 27;
 
 	/** Analog comparator output for a fully mature pot. */
 	public static final int MATURE_SIGNAL = 15;
 
 	private static final int[] NO_SLOTS = new int[0];
-	private static final int[] STORAGE_SLOTS = buildStorageSlots();
+	private static final int[] STORAGE_SLOTS = buildSlotRange(FIRST_STORAGE, STORAGE_COUNT);
+	private static final int[] FERTILIZER_INPUT_SLOTS = buildSlotRange(FERTILIZER_INPUT_FIRST, FERTILIZER_INPUT_COUNT);
 
 	private PotMechanics() {
 	}
 
-	private static int[] buildStorageSlots() {
-		final int[] slots = new int[STORAGE_COUNT];
-		for (int i = 0; i < STORAGE_COUNT; i++) {
-			slots[i] = FIRST_STORAGE + i;
+	private static int[] buildSlotRange(final int first, final int count) {
+		final int[] slots = new int[count];
+		for (int i = 0; i < count; i++) {
+			slots[i] = first + i;
 		}
 		return slots;
 	}
@@ -46,6 +54,11 @@ public final class PotMechanics {
 	/** True if {@code slot} is one of the 12 storage/output slots (3..14). */
 	public static boolean isStorageSlot(final int slot) {
 		return slot >= FIRST_STORAGE && slot <= LAST_STORAGE;
+	}
+
+	/** True if {@code slot} is one of the 12 fertilizer input slots (15..26). */
+	public static boolean isFertilizerInputSlot(final int slot) {
+		return slot >= FERTILIZER_INPUT_FIRST && slot <= FERTILIZER_INPUT_LAST;
 	}
 
 	/** True if {@code slot} is an input slot (soil/seed/tool, i.e. {@code <= TOOL}). */
@@ -97,20 +110,33 @@ public final class PotMechanics {
 
 	/**
 	 * The slots an automation (hopper/pipe) may reach through {@code face}. Only hopper pots expose
-	 * anything, and only the storage slots through the DOWN face (§B.3); every other case is empty.
+	 * anything: the storage slots through the DOWN face (extraction, §B.3) and the fertilizer input
+	 * slots through every other face (insertion); a non-hopper pot exposes nothing.
 	 */
 	public static int[] automationSlotsForFace(final boolean hopper, final Direction face) {
-		return hopper && face == Direction.DOWN ? STORAGE_SLOTS.clone() : NO_SLOTS;
+		if (!hopper) {
+			return NO_SLOTS;
+		}
+		return face == Direction.DOWN ? STORAGE_SLOTS.clone() : FERTILIZER_INPUT_SLOTS.clone();
 	}
 
-	/** Automation extraction is allowed only from a hopper pot's storage slots via the DOWN face. */
+	/**
+	 * Automation extraction is allowed only from a hopper pot's storage slots via the DOWN face. The
+	 * fertilizer input slots are insert-only — {@link #isStorageSlot} rejects them, so they can never
+	 * be drained by automation.
+	 */
 	public static boolean canAutomationTake(final boolean hopper, final int slot, final Direction face) {
 		return hopper && face == Direction.DOWN && isStorageSlot(slot);
 	}
 
-	/** Automation may never insert into a pot through any face (§B.3). */
-	public static boolean canAutomationPlace() {
-		return false;
+	/**
+	 * The hopper/facing gate for automation insertion: only a hopper pot's fertilizer input slots, and
+	 * only through a non-DOWN face (DOWN is reserved for storage extraction). A {@code null} face
+	 * (no side) is treated like a side face. Item-level acceptance (the stack must match a fertilizer
+	 * recipe) is checked separately by the block entity, which owns the recipe lookup.
+	 */
+	public static boolean canAutomationPlaceInto(final boolean hopper, final int slot, final @Nullable Direction face) {
+		return hopper && face != Direction.DOWN && isFertilizerInputSlot(slot);
 	}
 
 	/**
@@ -123,6 +149,23 @@ public final class PotMechanics {
 	 * mature instead of auto-harvesting into a buffer with nowhere to put the drops — no item loss, no
 	 * infinite re-harvest — and resumes the moment space frees up.
 	 */
+	/**
+	 * The index of the first non-empty fertilizer input slot at or after {@code fromSlot}, or {@code -1}
+	 * when none remains. Scans only the fertilizer input region ({@link #FERTILIZER_INPUT_FIRST}..
+	 * {@link #FERTILIZER_INPUT_LAST}); a {@code fromSlot} below the region starts at its first slot.
+	 * The hopper auto-fertilize step walks candidates with this, resuming at {@code slot + 1} to skip
+	 * past a stack whose item matched no fertilizer recipe. {@code items} must be at least {@link #SIZE}
+	 * long; only the fertilizer input slots are read.
+	 */
+	public static int nextNonEmptyFertilizerSlot(final List<ItemStack> items, final int fromSlot) {
+		for (int slot = Math.max(fromSlot, FERTILIZER_INPUT_FIRST); slot <= FERTILIZER_INPUT_LAST; slot++) {
+			if (!items.get(slot).isEmpty()) {
+				return slot;
+			}
+		}
+		return -1;
+	}
+
 	public static boolean storageBufferHasRoom(final int[] freeCapacity) {
 		for (final int free : freeCapacity) {
 			if (free > 0) {
@@ -161,6 +204,45 @@ public final class PotMechanics {
 			}
 		}
 		return remaining.getCount();
+	}
+
+	/**
+	 * Merge {@code held} into the fertilizer input region (slots {@link #FERTILIZER_INPUT_FIRST}..
+	 * {@link #FERTILIZER_INPUT_LAST}) of {@code items} in place, returning the count placed. Stacks onto
+	 * matching non-empty slots first, then fills empty slots; each slot is capped at
+	 * {@code min(containerMax, item's own max stack size)}. Only the fertilizer input slots are touched.
+	 *
+	 * <p>The hopper-pot right-click path (the only caller) places what fits and shrinks the player's held
+	 * stack by the returned count — unlike {@link #fillStorage}, {@code held} is NOT mutated here (the
+	 * caller owns the creative-mode shrink guard); any remainder simply stays in the player's hand. The
+	 * hopper auto-fertilize tick then consumes the deposited stack, so nothing is ever voided.
+	 */
+	public static int depositFertilizer(final List<ItemStack> items, final ItemStack held, final int containerMax) {
+		if (held.isEmpty()) {
+			return 0;
+		}
+		int placed = 0;
+		// Pass 1: top up matching non-empty stacks.
+		for (int slot = FERTILIZER_INPUT_FIRST; slot <= FERTILIZER_INPUT_LAST && placed < held.getCount(); slot++) {
+			final ItemStack current = items.get(slot);
+			if (!current.isEmpty() && ItemStack.isSameItemSameComponents(current, held)) {
+				final int space = Math.min(containerMax, current.getMaxStackSize()) - current.getCount();
+				if (space > 0) {
+					final int move = Math.min(space, held.getCount() - placed);
+					current.grow(move);
+					placed += move;
+				}
+			}
+		}
+		// Pass 2: fill empty slots (a fresh copy per slot; held itself is never split or shrunk).
+		for (int slot = FERTILIZER_INPUT_FIRST; slot <= FERTILIZER_INPUT_LAST && placed < held.getCount(); slot++) {
+			if (items.get(slot).isEmpty()) {
+				final int move = Math.min(held.getCount() - placed, Math.min(containerMax, held.getMaxStackSize()));
+				items.set(slot, held.copyWithCount(move));
+				placed += move;
+			}
+		}
+		return placed;
 	}
 
 	/**

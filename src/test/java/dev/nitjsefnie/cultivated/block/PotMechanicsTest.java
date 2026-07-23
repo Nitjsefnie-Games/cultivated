@@ -112,7 +112,28 @@ class PotMechanicsTest {
 		assertEquals(0, PotMechanics.maxStackSizeForSlot(PotMechanics.SOIL, 0));
 	}
 
-	// ---- automation faces: extract only from hopper storage via DOWN; never insert ----
+	// ---- fertilizer input slot classification ----
+
+	@Test
+	void fertilizerInputSlot_boundaries() {
+		assertFalse(PotMechanics.isFertilizerInputSlot(PotMechanics.LAST_STORAGE));
+		assertTrue(PotMechanics.isFertilizerInputSlot(PotMechanics.FERTILIZER_INPUT_FIRST));
+		assertTrue(PotMechanics.isFertilizerInputSlot(PotMechanics.FERTILIZER_INPUT_LAST));
+		assertFalse(PotMechanics.isFertilizerInputSlot(PotMechanics.SIZE));
+		assertEquals(PotMechanics.FERTILIZER_INPUT_LAST - PotMechanics.FERTILIZER_INPUT_FIRST + 1,
+			PotMechanics.FERTILIZER_INPUT_COUNT);
+		assertEquals(PotMechanics.LAST_STORAGE + 1, PotMechanics.FERTILIZER_INPUT_FIRST);
+		assertEquals(PotMechanics.FERTILIZER_INPUT_LAST + 1, PotMechanics.SIZE);
+	}
+
+	@Test
+	void fertilizerInputSlot_notStorageNotInput() {
+		assertFalse(PotMechanics.isStorageSlot(PotMechanics.FERTILIZER_INPUT_FIRST));
+		assertFalse(PotMechanics.isStorageSlot(PotMechanics.FERTILIZER_INPUT_LAST));
+		assertFalse(PotMechanics.isInputSlot(PotMechanics.FERTILIZER_INPUT_FIRST));
+	}
+
+	// ---- automation faces: hopper = storage out via DOWN, fertilizer in via the sides ----
 
 	@Test
 	void automationFaces_hopperDownExposesStorage() {
@@ -122,14 +143,20 @@ class PotMechanicsTest {
 	}
 
 	@Test
-	void automationFaces_hopperNonDownExposesNothing() {
-		assertEquals(0, PotMechanics.automationSlotsForFace(true, Direction.UP).length);
-		assertEquals(0, PotMechanics.automationSlotsForFace(true, Direction.NORTH).length);
+	void automationFaces_hopperNonDownExposesFertilizerInputs() {
+		final int[] expected = new int[] {15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26};
+		assertArrayEquals(expected, PotMechanics.automationSlotsForFace(true, Direction.UP));
+		assertArrayEquals(expected, PotMechanics.automationSlotsForFace(true, Direction.NORTH));
+		assertArrayEquals(expected, PotMechanics.automationSlotsForFace(true, Direction.SOUTH));
+		assertArrayEquals(expected, PotMechanics.automationSlotsForFace(true, Direction.EAST));
+		assertArrayEquals(expected, PotMechanics.automationSlotsForFace(true, Direction.WEST));
 	}
 
 	@Test
 	void automationFaces_basicPotExposesNothing() {
 		assertEquals(0, PotMechanics.automationSlotsForFace(false, Direction.DOWN).length);
+		assertEquals(0, PotMechanics.automationSlotsForFace(false, Direction.UP).length);
+		assertEquals(0, PotMechanics.automationSlotsForFace(false, Direction.NORTH).length);
 	}
 
 	@Test
@@ -142,8 +169,41 @@ class PotMechanicsTest {
 	}
 
 	@Test
-	void automationPlace_neverAllowed() {
-		assertFalse(PotMechanics.canAutomationPlace());
+	void automationTake_fertilizerInputsNeverExtractable() {
+		// Insert-only region: no face, not even DOWN, may drain a fertilizer input slot.
+		assertFalse(PotMechanics.canAutomationTake(true, PotMechanics.FERTILIZER_INPUT_FIRST, Direction.DOWN));
+		assertFalse(PotMechanics.canAutomationTake(true, PotMechanics.FERTILIZER_INPUT_LAST, Direction.DOWN));
+		assertFalse(PotMechanics.canAutomationTake(true, PotMechanics.FERTILIZER_INPUT_FIRST, Direction.UP));
+		assertFalse(PotMechanics.canAutomationTake(true, PotMechanics.FERTILIZER_INPUT_FIRST, Direction.NORTH));
+	}
+
+	@Test
+	void automationPlaceInto_hopperFertilizerSlotViaSide() {
+		assertTrue(PotMechanics.canAutomationPlaceInto(true, PotMechanics.FERTILIZER_INPUT_FIRST, Direction.UP));
+		assertTrue(PotMechanics.canAutomationPlaceInto(true, PotMechanics.FERTILIZER_INPUT_LAST, Direction.NORTH));
+		assertTrue(PotMechanics.canAutomationPlaceInto(true, PotMechanics.FERTILIZER_INPUT_FIRST, null));
+	}
+
+	@Test
+	void automationPlaceInto_rejectsDownFace() {
+		// DOWN is reserved for storage extraction; fertilizer insertion never comes from below.
+		assertFalse(PotMechanics.canAutomationPlaceInto(true, PotMechanics.FERTILIZER_INPUT_FIRST, Direction.DOWN));
+		assertFalse(PotMechanics.canAutomationPlaceInto(true, PotMechanics.FERTILIZER_INPUT_LAST, Direction.DOWN));
+	}
+
+	@Test
+	void automationPlaceInto_rejectsNonFertilizerSlots() {
+		assertFalse(PotMechanics.canAutomationPlaceInto(true, PotMechanics.SOIL, Direction.UP));
+		assertFalse(PotMechanics.canAutomationPlaceInto(true, PotMechanics.TOOL, Direction.UP));
+		assertFalse(PotMechanics.canAutomationPlaceInto(true, PotMechanics.FIRST_STORAGE, Direction.UP));
+		assertFalse(PotMechanics.canAutomationPlaceInto(true, PotMechanics.LAST_STORAGE, Direction.NORTH));
+	}
+
+	@Test
+	void automationPlaceInto_nonHopperRejectsEverything() {
+		assertFalse(PotMechanics.canAutomationPlaceInto(false, PotMechanics.FERTILIZER_INPUT_FIRST, Direction.UP));
+		assertFalse(PotMechanics.canAutomationPlaceInto(false, PotMechanics.FERTILIZER_INPUT_LAST, Direction.NORTH));
+		assertFalse(PotMechanics.canAutomationPlaceInto(false, PotMechanics.FIRST_STORAGE, Direction.UP));
 	}
 
 	// ---- R2d: storage-buffer room decision (a full hopper pot pauses its growth cycle) ----

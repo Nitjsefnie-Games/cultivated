@@ -11,11 +11,18 @@ import net.minecraft.world.entity.player.Inventory;
 /**
  * Phase B §B.7/§B.8 — the {@code cultivated:hopper_pot_menu}: soil (44,48), seed (44,22) and a
  * harvest-tool slot (18,35, accepting only tag {@code cultivated:harvest_items}) on the left, plus a
- * 4-wide × 3-tall grid of 12 extract-only output slots starting at (80,17) and stepping 18px, over
- * the player inventory.
+ * 4-wide × 3-tall grid of 12 extract-only output slots starting at (80,17) and stepping 18px, and a
+ * 4×3 grid of 12 fertilizer input slots starting at (80,86) and stepping 18px, over the player
+ * inventory (top at y=142 on the taller 176×224 hopper background).
  */
 public class HopperPotMenu extends AbstractPotMenu {
-	/** All 15 container slots are exposed by the hopper menu (soil, seed, tool, 12 outputs). */
+	/**
+	 * The hopper pot player inventory's top edge: the hopper background grew to 176×224 to fit the
+	 * fertilizer grid, so the inventory sits lower than on the basic pot ({@link #INVENTORY_TOP}).
+	 */
+	private static final int HOPPER_INVENTORY_TOP = 142;
+
+	/** All 27 pot slots this menu exposes (soil, seed, tool, 12 outputs, 12 fertilizer inputs). */
 	private static final int POT_SLOTS = PotMechanics.SIZE;
 
 	/** Client-side factory (via {@link ModMenus#HOPPER_POT}): no live container, only the synced pos. */
@@ -39,6 +46,13 @@ public class HopperPotMenu extends AbstractPotMenu {
 					PotMenuLayout.outputX(column), PotMenuLayout.outputY(row)));
 			}
 		}
+		for (int row = 0; row < PotMenuLayout.FERTILIZER_ROWS; row++) {
+			for (int column = 0; column < PotMenuLayout.FERTILIZER_COLUMNS; column++) {
+				// No dedicated fertilizer empty-slot sprite exists, so no placeholder icon (null).
+				this.addSlot(PotSlot.input(container, PotMenuLayout.fertilizerContainerSlot(row, column),
+					PotMenuLayout.fertilizerX(column), PotMenuLayout.fertilizerY(row), this::resolvesFertilizer, null));
+			}
+		}
 		this.addPlayerInventory(inventory);
 	}
 
@@ -50,5 +64,10 @@ public class HopperPotMenu extends AbstractPotMenu {
 	@Override
 	protected boolean hasToolSlot() {
 		return true;
+	}
+
+	@Override
+	protected int inventoryTop() {
+		return HOPPER_INVENTORY_TOP;
 	}
 }
