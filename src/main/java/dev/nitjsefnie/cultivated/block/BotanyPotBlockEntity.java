@@ -93,6 +93,8 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 	private final TickAccumulator exportDelay = new TickAccumulator();
 	private int comparatorLevel;
 	private int bonemealCooldown;
+	/** Every distinct item this pot has auto-generated (hopper-only), with per-item suppression. */
+	private final GeneratedItems generated = new GeneratedItems();
 
 	private final ReloadableCache<CropRecipe> cropCache = ReloadableCache.of(this::computeCrop);
 	private final ReloadableCache<SoilRecipe> soilCache = ReloadableCache.of(this::computeSoil);
@@ -217,6 +219,8 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.growCooldown.reset();
 		this.setComparatorLevel(0);
 		this.bonemealCooldown = 0;
+		// A new soil/seed combination (or full clear) starts fresh: forget what the old plant generated.
+		this.generated.clear();
 		this.cropCache.invalidate();
 		this.soilCache.invalidate();
 	}
@@ -545,7 +549,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		final int rolls = YieldFormula.rolls(random, totalYield);
 		for (int roll = 0; roll < rolls; roll++) {
 			for (final DropProvider drop : crop.drops()) {
-				drop.generateDrops(context, random, this::insertIntoStorage);
+				drop.generateDrops(context, random, this::trackAndInsert);
 			}
 		}
 		this.damageHarvestTool();
@@ -934,6 +938,17 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		PotMechanics.fillStorage(this.items, drop, this.getMaxStackSize());
 	}
 
+	/**
+	 * Hopper-only harvest filter (server-side core, no sync): remember every distinct generated item
+	 * and store the roll only while its entry is not suppressed; suppressed items are voided like
+	 * buffer overflow. The {@link #autoHarvest} caller's {@code setChanged()} persists any discovery.
+	 */
+	private void trackAndInsert(final ItemStack drop) {
+		if (this.generated.filterAndTrack(drop)) {
+			this.insertIntoStorage(drop);
+		}
+	}
+
 	/** Hopper export (§B.5): push each storage slot into the inventory below, through its up face. */
 	private void exportToBelow(final Level level) {
 		final BlockPos below = this.worldPosition.below();
@@ -994,6 +1009,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		this.growCooldown.set(input.getFloatOr("GrowCooldown", 0.0f));
 		this.exportDelay.set(input.getFloatOr("ExportDelay", 0.0f));
 		this.bonemealCooldown = input.getIntOr("BonemealCooldown", 0);
+		this.generated.load(input);
 		this.cropCache.invalidate();
 		this.soilCache.invalidate();
 	}
@@ -1007,6 +1023,7 @@ public class BotanyPotBlockEntity extends BlockEntity implements WorldlyContaine
 		output.putFloat("GrowCooldown", this.growCooldown.get());
 		output.putFloat("ExportDelay", this.exportDelay.get());
 		output.putInt("BonemealCooldown", this.bonemealCooldown);
+		this.generated.save(output);
 	}
 
 	@Override
