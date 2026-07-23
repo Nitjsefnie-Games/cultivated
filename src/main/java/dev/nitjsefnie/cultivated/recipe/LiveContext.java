@@ -1,10 +1,13 @@
 package dev.nitjsefnie.cultivated.recipe;
 
+import com.mojang.authlib.GameProfile;
 import dev.nitjsefnie.cultivated.block.BotanyPotBlockEntity;
 import dev.nitjsefnie.cultivated.block.PotMechanics;
 import dev.nitjsefnie.cultivated.config.CultivatedConfig;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
+import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.minecraft.core.BlockPos;
 import java.util.Optional;
 import net.minecraft.core.registries.Registries;
@@ -44,6 +47,15 @@ import org.jspecify.annotations.Nullable;
  * methods return empty / no-op, so a shared drop provider stays side-safe.
  */
 public final class LiveContext implements PotContext {
+	/**
+	 * Stable identity of the synthetic harvester credited with the kill when no real player triggered
+	 * the harvest (hopper auto-harvest, {@code check_crops} audit). The UUID is a fixed constant so the
+	 * per-server {@link FakePlayer} cache key — and any loot logic reading the killer's UUID — is
+	 * deterministic across restarts.
+	 */
+	static final GameProfile HARVESTER_PROFILE =
+		new GameProfile(UUID.fromString("c47a1e7a-7ed0-4b1a-9c5f-7d2b8a1e6f03"), "[Cultivated]");
+
 	private final BotanyPotBlockEntity pot;
 	private final @Nullable Player player;
 	private final @Nullable InteractionHand hand;
@@ -181,13 +193,17 @@ public final class LiveContext implements PotContext {
 			final Optional<ResourceKey<LootTable>> key = created.getLootTable();
 			if (key.isPresent()) {
 				final LootTable table = server.getServer().reloadableRegistries().getLootTable(key.get());
+				// Killer attribution: never omit these params - withOptionalParameter drops a null
+				// value, silently failing killed_by_player-gated loot (blaze rods, wither skulls)
+				// on player-less harvests, so resolve a non-null killer first.
+				final Player killer = harvestKiller(this.player, server);
 				final LootParams params = new LootParams.Builder(server)
 					.withParameter(LootContextParams.THIS_ENTITY, created)
 					.withParameter(LootContextParams.ORIGIN, origin)
 					.withParameter(LootContextParams.DAMAGE_SOURCE, server.damageSources().generic())
-					.withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, this.player)
-					.withOptionalParameter(LootContextParams.ATTACKING_ENTITY, this.player)
-					.withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, this.player)
+					.withParameter(LootContextParams.LAST_DAMAGE_PLAYER, killer)
+					.withParameter(LootContextParams.ATTACKING_ENTITY, killer)
+					.withParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, killer)
 					.create(LootContextParamSets.ENTITY);
 				drops.addAll(table.getRandomItems(params, random));
 			}
@@ -199,6 +215,19 @@ public final class LiveContext implements PotContext {
 		} catch (final RuntimeException failure) {
 			return List.of();
 		}
+	}
+
+	/**
+	 * The killer credited for entity death loot: the interacting player when one is present (a real
+	 * player's looting enchant and identity still apply — manual Basic-pot harvest is unchanged), else
+	 * a per-server cached {@link FakePlayer} under {@link #HARVESTER_PROFILE}. Player-kill-gated loot
+	 * conditions ({@code minecraft:killed_by_player} — blaze rods, wither skeleton skulls, …) require
+	 * a NON-NULL {@code LAST_DAMAGE_PLAYER}; {@code LootParams.Builder.withOptionalParameter} silently
+	 * omits a null value, which is exactly what broke hopper auto-harvest and the {@code check_crops}
+	 * audit path (both build a player-less {@code LiveContext}).
+	 */
+	static Player harvestKiller(final @Nullable Player player, final ServerLevel server) {
+		return player != null ? player : FakePlayer.get(server, HARVESTER_PROFILE);
 	}
 
 	/** Run a detached mob through its own spawn-finalize so it has the vanilla small chance of equipment. */
