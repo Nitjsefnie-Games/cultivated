@@ -82,12 +82,25 @@ class SpawnEggCropRecipeTest {
 		final CropRecipe resolved = recipe.resolveFor(new ItemStack(Items.ZOMBIE_SPAWN_EGG));
 		assertNotNull(resolved, "a zombie spawn egg must resolve to a crop");
 
-		// The second drop is a 0.1%-chance items drop yielding the egg itself, on top of the death loot.
+		// The second drop is an items drop yielding the egg itself, on top of the death loot.
 		final DropProvider.Items eggDrop = assertInstanceOf(DropProvider.Items.class, resolved.drops().get(1));
-		assertEquals(1, eggDrop.items().size(), "exactly one bonus egg entry");
+		assertEquals(2, eggDrop.items().size(), "two independent bonus entries: egg-back and spawner");
 		final DropProvider.Items.Entry entry = eggDrop.items().getFirst();
 		assertEquals(0.001f, entry.chance(), "a 0.1% drop chance");
 		assertEquals(Items.ZOMBIE_SPAWN_EGG, entry.result().get().getItem(), "the bonus drop is the egg itself");
+	}
+
+	@Test
+	void harvestHasVeryRareChanceToDropEmptyMobSpawner() {
+		final SpawnEggCropRecipe recipe = sampleRecipe();
+		final CropRecipe resolved = recipe.resolveFor(new ItemStack(Items.ZOMBIE_SPAWN_EGG));
+		assertNotNull(resolved, "a zombie spawn egg must resolve to a crop");
+
+		// The second drop also contains a 0.01%-chance entry for an empty mob spawner.
+		final DropProvider.Items bonusDrop = assertInstanceOf(DropProvider.Items.class, resolved.drops().get(1));
+		final DropProvider.Items.Entry spawnerEntry = bonusDrop.items().get(1);
+		assertEquals(0.0001f, spawnerEntry.chance(), "a 0.01% drop chance");
+		assertEquals(Items.SPAWNER, spawnerEntry.result().get().getItem(), "the bonus drop is an empty mob spawner");
 	}
 
 	@Test
